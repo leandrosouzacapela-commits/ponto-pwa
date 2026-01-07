@@ -41,9 +41,17 @@ button {
 .btn-sair   { background: #ef4444; }
 .btn-rel    { background: #2563eb; }
 
+.status-box {
+  margin: 18px 0;
+  padding: 14px;
+  border-radius: 10px;
+  font-size: 20px;
+  background: #16a34a;
+}
+
 .hidden { display: none; }
 
-/* ===== RELATÓRIO ===== */
+/* ================= RELATÓRIO ================= */
 #relatorio {
   display: none;
   background: #ffffff;
@@ -55,6 +63,24 @@ button {
 
 #relatorio * { color: #000; }
 
+#tituloRelatorio {
+  text-align: center;
+  font-size: 20px;
+  font-weight: bold;
+}
+
+#tituloFuncionario {
+  text-align: center;
+  font-size: 18px;
+  margin-top: 4px;
+}
+
+#periodoRelatorio {
+  text-align: center;
+  font-weight: bold;
+  margin: 10px 0 16px 0;
+}
+
 .resumo {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -65,22 +91,16 @@ button {
 .caixa {
   border: 2px solid #2563eb;
   border-radius: 10px;
-  padding: 10px;
+  padding: 12px;
   text-align: center;
+  font-size: 16px;
   font-weight: bold;
 }
 
-.caixa span {
-  display: block;
-  margin-top: 6px;
-  font-size: 16px;
-}
-
-/* ===== PRINT ===== */
 @media print {
   body { background: #fff; color: #000; }
-  .container > *:not(#relatorio) { display: none; }
-  #relatorio { display: block; }
+  .container > *:not(#relatorio) { display: none !important; }
+  #relatorio { display: block !important; }
 }
 </style>
 </head>
@@ -96,26 +116,40 @@ button {
     <input id="nomeFuncionario"
       value="EDENILSON DE SOUZA PEREIRA"
       onblur="localStorage.setItem('nomeFuncionario',this.value)"
-      style="background:transparent;border:none;color:#fff;font-size:18px;font-weight:bold;text-align:center;width:100%;outline:none;">
+      style="
+        background:transparent;
+        border:none;
+        color:#fff;
+        font-size:18px;
+        font-weight:bold;
+        text-align:center;
+        width:100%;
+        outline:none;
+      "
+    >
   </div>
 
   <div class="info" id="dataHora"></div>
+  <div class="info" id="statusAtual"></div>
+  <div class="info" id="ultimaAcao"></div>
 
   <button class="btn-entrar" onclick="registrar('ENTRADA')">ENTRAR</button>
   <button class="btn-sair" onclick="registrar('SAIDA')">SAIR</button>
 
+  <div id="statusEnvio" class="status-box hidden">✔ Registro enviado</div>
+
   <button class="btn-rel" onclick="abrirRelatorio()">RELATÓRIO / PDF</button>
 
   <div id="relatorio">
-    <h2 style="text-align:center">RELATÓRIO DE PONTO</h2>
-    <h3 id="tituloNome" style="text-align:center"></h3>
-    <div id="periodoRelatorio" style="text-align:center;font-weight:bold"></div>
+    <div id="tituloRelatorio">RELATÓRIO DE PONTO</div>
+    <div id="tituloFuncionario"></div>
+    <div id="periodoRelatorio"></div>
 
     <div class="resumo">
-      <div class="caixa">DIA<span id="rDia">00h:00min</span></div>
-      <div class="caixa">SEMANA<span id="rSemana">00h:00min</span></div>
-      <div class="caixa">MÊS<span id="rMes">00h:00min</span></div>
-      <div class="caixa">ANO<span id="rAno">00h:00min</span></div>
+      <div class="caixa">DIA<br><span id="rDia">00h:00min</span></div>
+      <div class="caixa">SEMANA<br><span id="rSemana">00h:00min</span></div>
+      <div class="caixa">MÊS<br><span id="rMes">00h:00min</span></div>
+      <div class="caixa">ANO<br><span id="rAno">00h:00min</span></div>
     </div>
 
     <div id="listaRegistros"></div>
@@ -127,22 +161,67 @@ button {
 </div>
 
 <script>
-setInterval(()=> {
-  const d=new Date();
-  dataHora.innerText="Hoje: "+d.toLocaleDateString()+" — "+d.toLocaleTimeString();
-},1000);
+/* ===== AGORA A SUA URL DO WEB APP ===== */
+const BACKEND_URL =
+  "https://script.google.com/macros/s/AKfycbwfmbM-mhtDYLIPuETanm7yAQP1YLGEQtxbwXaSP2moySshiyYgBJBui1SEb2tVChlGVQ/exec";
 
-if(localStorage.getItem("nomeFuncionario"))
-  nomeFuncionario.value=localStorage.getItem("nomeFuncionario");
+/* ===== RELÓGIO ===== */
+setInterval(() => {
+  const d = new Date();
+  dataHora.innerText = "Hoje: " + d.toLocaleDateString() + " — " + d.toLocaleTimeString();
+}, 1000);
 
+/* ===== NOME ===== */
+if (localStorage.getItem("nomeFuncionario"))
+  nomeFuncionario.value = localStorage.getItem("nomeFuncionario");
+
+/* ===== ESTADO ===== */
+function getEstado(){ return localStorage.getItem("estado") || "FORA"; }
+function setEstado(e){
+  localStorage.setItem("estado", e);
+  statusAtual.innerText = "Status: " + (e==="DENTRO"?"Em serviço":"Fora");
+}
+setEstado(getEstado());
+
+/* ===== FUNÇÃO registrar(tipo) COM ENVIO PARA SHEETS ===== */
 function registrar(tipo){
-  const dados=JSON.parse(localStorage.getItem("pontos")||"[]");
-  dados.push({tipo,iso:new Date().toISOString()});
-  localStorage.setItem("pontos",JSON.stringify(dados));
+
+  // Bloqueia entrada duplicada / saida duplicada
+  if(tipo==="ENTRADA" && getEstado()==="DENTRO") return;
+  if(tipo==="SAIDA"   && getEstado()==="FORA")  return;
+
+  const agora = new Date();
+  const iso   = agora.toISOString();
+  const nome  = nomeFuncionario.value.trim() || "SEM NOME";
+
+  // salva local (para relatório interno)
+  const arr = JSON.parse(localStorage.getItem("pontos")||"[]");
+  arr.push({ tipo, iso });
+  localStorage.setItem("pontos", JSON.stringify(arr));
+
+  // define estado
+  setEstado(tipo==="ENTRADA"?"DENTRO":"FORA");
+
+  // atualiza ultima ação visual
+  ultimaAcao.innerText =
+    "Última ação: " + tipo + " às " + agora.toLocaleTimeString();
+
+  // envia para planilha Google Sheets
+  const url =
+    BACKEND_URL +
+    "?nome=" + encodeURIComponent(nome) +
+    "&tipo=" + encodeURIComponent(tipo) +
+    "&iso="  + encodeURIComponent(iso);
+
+  fetch(url); // GET simples, sem CORS
+
+  // mostra mensagem
+  statusEnvio.classList.remove("hidden");
 }
 
+/* ===== RELATÓRIO ===== */
 function abrirRelatorio(){
-  relatorio.style.display=relatorio.style.display==="none"?"block":"none";
+  relatorio.style.display = relatorio.style.display==="none"?"block":"none";
   gerarRelatorio();
 }
 
@@ -151,33 +230,54 @@ function minToTxt(min){
 }
 
 function gerarRelatorio(){
-  const regs=JSON.parse(localStorage.getItem("pontos")||"[]");
-  const hoje=new Date();
-  let dia=0,sem=0,mes=0,ano=0;
-  let html="",datas=[];
+  const regs = JSON.parse(localStorage.getItem("pontos")||"[]");
+  const hoje = new Date();
+  let totalDia=0,totalSemana=0,totalMes=0,totalAno=0;
+  let html=""; let datas=[];
 
-  for(let i=0;i<regs.length;i++){
-    const r=regs[i];
-    const d=new Date(r.iso);
-
-    html+=`${d.toLocaleDateString()} — ${r.tipo} — ${d.toLocaleTimeString()}<br>`;
+  regs.forEach((r,i)=>{
+    const d = new Date(r.iso);
     datas.push(d);
 
-    if(d.toDateString()===hoje.toDateString()) dia+=0;
-    if(d.getMonth()===hoje.getMonth()) mes+=0;
-    if(d.getFullYear()===hoje.getFullYear()) ano+=0;
-  }
+    html +=
+      `${d.toLocaleDateString()} — ${r.tipo} — ${d.toLocaleTimeString()}<br>`;
+
+    // cálculo simples (somente entre pares ENTRADA/SAIDA)
+    if(r.tipo==="ENTRADA" && regs[i+1]?.tipo==="SAIDA"){
+      const s  = new Date(regs[i+1].iso);
+      const difMin = Math.round((s - d)/60000);
+
+      if(d.toDateString()===hoje.toDateString())
+        totalDia += difMin;
+
+      if(
+        d.getFullYear()===hoje.getFullYear() &&
+        d.getMonth()===hoje.getMonth() &&
+        d.getDate() >= hoje.getDate()-7
+      ) totalSemana += difMin;
+
+      if(d.getMonth()===hoje.getMonth())
+        totalMes += difMin;
+
+      if(d.getFullYear()===hoje.getFullYear())
+        totalAno += difMin;
+    }
+  });
 
   tituloNome.innerText="NOME: "+nomeFuncionario.value;
   if(datas.length)
-    periodoRelatorio.innerText="PERÍODO: "+datas[0].toLocaleDateString()+" a "+datas[datas.length-1].toLocaleDateString();
+    periodoRelatorio.innerText =
+      "PERÍODO: " +
+      datas[0].toLocaleDateString() +
+      " a " +
+      datas[datas.length-1].toLocaleDateString();
 
-  rDia.innerText=minToTxt(dia);
-  rSemana.innerText=minToTxt(sem);
-  rMes.innerText=minToTxt(mes);
-  rAno.innerText=minToTxt(ano);
+  rDia.innerText=minToTxt(totalDia);
+  rSemana.innerText=minToTxt(totalSemana);
+  rMes.innerText=minToTxt(totalMes);
+  rAno.innerText=minToTxt(totalAno);
 
-  listaRegistros.innerHTML=html||"<em>Nenhum registro.</em>";
+  listaRegistros.innerHTML = html || "<em>Nenhum registro.</em>";
 }
 </script>
 
