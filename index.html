@@ -9,6 +9,14 @@
 <meta name="theme-color" content="#0f172a">
 
 <style>
+  <script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    window.location.reload();
+  });
+}
+</script>
+
 body {
   font-family: Arial, sans-serif;
   background: #0f172a;
