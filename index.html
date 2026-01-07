@@ -12,16 +12,18 @@
 body {
   font-family: Arial, sans-serif;
   background: radial-gradient(circle at top, #111827, #020617);
-  color: #ffffff;
+  color: #fff;
   text-align: center;
   padding: 24px;
 }
+h1 { margin-bottom: 10px; }
+.info { margin: 6px 0; font-size: 15px; }
 
-button {
+button, select {
   width: 100%;
-  padding: 18px;
+  padding: 16px;
   margin: 12px 0;
-  font-size: 20px;
+  font-size: 18px;
   border-radius: 10px;
   border: none;
   color: #fff;
@@ -29,6 +31,7 @@ button {
 
 .entrar { background: #22c55e; }
 .sair { background: #ef4444; }
+.rel { background: #f59e0b; }
 
 .status-box {
   margin-top: 14px;
@@ -40,7 +43,30 @@ button {
 .ok { background: #16a34a; }
 .off { background: #f59e0b; }
 .alerta { background: #dc2626; }
-.info { background: #2563eb; }
+.info-box { background: #2563eb; }
+
+#relatorio {
+  display: none;
+  background: #fff;
+  color: #000;
+  padding: 20px;
+  margin-top: 20px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+th, td {
+  border: 1px solid #000;
+  padding: 6px;
+  text-align: center;
+}
+
+@media print {
+  body * { display: none; }
+  #relatorio, #relatorio * { display: block; }
+}
 </style>
 </head>
 
@@ -48,32 +74,58 @@ button {
 
 <h1>Controle de Ponto</h1>
 
-<p><strong>Funcionário:</strong></p>
-<p>EDENILSON DE SOUZA PEREIRA</p>
+<div class="info"><strong>Funcionário:</strong></div>
+<div class="info">EDENILSON DE SOUZA PEREIRA</div>
 
-<p id="dataHora"></p>
-<p id="statusAtual"></p>
-<p id="ultimaAcao"></p>
+<div class="info" id="dataHora"></div>
+<div class="info" id="statusAtual"></div>
+<div class="info" id="ultimaAcao"></div>
 
 <button class="entrar" onclick="registrarEntrada()">ENTRAR</button>
 <button class="sair" onclick="registrarSaida()">SAIR</button>
 
-<div id="statusMsg" class="status-box info">
+<div id="statusMsg" class="status-box info-box">
 Pronto para registrar
 </div>
 
+<select id="tipoRelatorio">
+  <option value="diario">Relatório Diário</option>
+  <option value="mensal">Relatório Mensal</option>
+</select>
+
+<button class="rel" onclick="gerarRelatorio()">📄 RELATÓRIO / PDF</button>
+
+<!-- RELATÓRIO -->
+<div id="relatorio">
+  <h2 id="tituloRel"></h2>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Data</th>
+        <th>Períodos Trabalhados</th>
+        <th>Total do Dia (h)</th>
+      </tr>
+    </thead>
+    <tbody id="dadosRel"></tbody>
+  </table>
+
+  <h3>Total Geral: <span id="totalHoras"></span> horas</h3>
+  <button onclick="window.print()">IMPRIMIR / SALVAR PDF</button>
+</div>
+
 <script>
-/* =========================
-   CONFIGURAÇÃO
-========================= */
+/* ================= CONFIG ================= */
 const FUNCIONARIO = "EDENILSON DE SOUZA PEREIRA";
+const BACKEND_URL = "https://script.google.com/macros/s/AKfycbx1JAngJ386gA0ZElDM3VK8Ox6crqPYfBtrArpgi-EAph_thq_dxNNd9oTz3Cve8QGEGA/exec";
 
-/* ⚠️ DEIXE ASSIM ATÉ TER O BACKEND */
-const BACKEND_URL = "";
+/* ================= SERVICE WORKER ================= */
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js');
+  navigator.serviceWorker.addEventListener('controllerchange', () => location.reload());
+}
 
-/* =========================
-   DATA / HORA
-========================= */
+/* ================= RELÓGIO ================= */
 function atualizarRelogio() {
   const agora = new Date();
   dataHora.innerText =
@@ -82,56 +134,37 @@ function atualizarRelogio() {
 setInterval(atualizarRelogio, 1000);
 atualizarRelogio();
 
-/* =========================
-   ESTADO
-========================= */
+/* ================= ESTADO ================= */
 function getEstado() {
   return localStorage.getItem("estado") || "FORA";
 }
 function setEstado(e) {
   localStorage.setItem("estado", e);
-  statusAtual.innerText =
-    "Status: " + (e === "DENTRO" ? "Em serviço" : "Fora");
+  statusAtual.innerText = "Status: " + (e === "DENTRO" ? "Em serviço" : "Fora");
 }
 setEstado(getEstado());
 
-/* =========================
-   UI
-========================= */
+/* ================= UI ================= */
 function mostrar(msg, classe) {
   statusMsg.className = "status-box " + classe;
   statusMsg.innerHTML = msg;
 }
 
-/* =========================
-   REGISTRO
-========================= */
+/* ================= REGISTRO ================= */
 function salvarRegistro(tipo) {
   let dados = JSON.parse(localStorage.getItem("pontos") || "[]");
-
   dados.push({
     nome: FUNCIONARIO,
     tipo,
     dataHora: new Date().toISOString(),
     sincronizado: false
   });
-
   localStorage.setItem("pontos", JSON.stringify(dados));
-
-  ultimaAcao.innerText =
-    "Última ação: " + tipo + " às " + new Date().toLocaleTimeString();
+  ultimaAcao.innerText = "Última ação: " + tipo + " às " + new Date().toLocaleTimeString();
 }
 
-/* =========================
-   SINCRONIZAÇÃO SEGURA
-========================= */
+/* ================= SINCRONIZA ================= */
 async function tentarSincronizar() {
-
-  if (!BACKEND_URL) {
-    mostrar("🟡 Salvo localmente (sem servidor)", "off");
-    return;
-  }
-
   if (!navigator.onLine) {
     mostrar("🟡 Salvo offline – aguardando internet", "off");
     return;
@@ -156,17 +189,13 @@ async function tentarSincronizar() {
       dados.forEach(d => d.sincronizado = true);
       localStorage.setItem("pontos", JSON.stringify(dados));
       mostrar("🟢 Sincronizado com sucesso", "ok");
-    } else {
-      mostrar("🟡 Erro ao sincronizar", "off");
     }
   } catch {
-    mostrar("🟡 Falha de conexão", "off");
+    mostrar("🟡 Falha de conexão – salvo offline", "off");
   }
 }
 
-/* =========================
-   BOTÕES (FUNCIONANDO)
-========================= */
+/* ================= BOTÕES ================= */
 function registrarEntrada() {
   if (getEstado() === "DENTRO") {
     mostrar("🔴 Já está em serviço", "alerta");
@@ -174,7 +203,7 @@ function registrarEntrada() {
   }
   salvarRegistro("ENTRADA");
   setEstado("DENTRO");
-  mostrar("Entrada registrada", "info");
+  mostrar("Entrada registrada", "info-box");
   tentarSincronizar();
 }
 
@@ -185,9 +214,71 @@ function registrarSaida() {
   }
   salvarRegistro("SAÍDA");
   setEstado("FORA");
-  mostrar("Saída registrada", "info");
+  mostrar("Saída registrada", "info-box");
   tentarSincronizar();
 }
+
+/* ================= RELATÓRIO COM CÁLCULO ================= */
+function gerarRelatorio() {
+
+  const tipo = document.getElementById("tipoRelatorio").value;
+  let registros = JSON.parse(localStorage.getItem("pontos") || "[]");
+
+  registros = registros.sort((a,b) => new Date(a.dataHora) - new Date(b.dataHora));
+
+  let hoje = new Date();
+  let inicio;
+
+  if (tipo === "diario") {
+    inicio = new Date();
+    inicio.setHours(0,0,0,0);
+    tituloRel.innerText = "Relatório Diário";
+  } else {
+    inicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+    tituloRel.innerText = "Relatório Mensal";
+  }
+
+  let filtrados = registros.filter(r => new Date(r.dataHora) >= inicio);
+
+  let mapa = {};
+  for (let i = 0; i < filtrados.length; i += 2) {
+    const ent = filtrados[i];
+    const sai = filtrados[i + 1];
+    if (!sai) continue;
+
+    const dia = new Date(ent.dataHora).toLocaleDateString();
+    mapa[dia] = mapa[dia] || [];
+    mapa[dia].push({ entrada: ent.dataHora, saida: sai.dataHora });
+  }
+
+  dadosRel.innerHTML = "";
+  let totalGeral = 0;
+
+  for (let dia in mapa) {
+    let totalDia = 0;
+    let periodos = mapa[dia].map(p => {
+      const e = new Date(p.entrada);
+      const s = new Date(p.saida);
+      const h = (s - e) / 36e5;
+      totalDia += h;
+      return `${e.toLocaleTimeString()} - ${s.toLocaleTimeString()}`;
+    }).join("<br>");
+
+    totalGeral += totalDia;
+
+    dadosRel.innerHTML += `
+      <tr>
+        <td>${dia}</td>
+        <td>${periodos}</td>
+        <td>${totalDia.toFixed(2)}</td>
+      </tr>`;
+  }
+
+  totalHoras.innerText = totalGeral.toFixed(2);
+  document.getElementById("relatorio").style.display = "block";
+}
+
+window.addEventListener("online", tentarSincronizar);
 </script>
 
 </body>
