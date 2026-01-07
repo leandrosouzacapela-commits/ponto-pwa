@@ -63,8 +63,8 @@ button {
 <div class="info" id="statusAtual"></div>
 <div class="info" id="ultimaAcao"></div>
 
-<button class="entrar" onclick="entrada()">ENTRAR</button>
-<button class="sair" onclick="saida()">SAIR</button>
+<button class="entrar" onclick="registrarEntrada()">ENTRAR</button>
+<button class="sair" onclick="registrarSaida()">SAIR</button>
 
 <div id="msg" class="status off">Pronto para registrar</div>
 
@@ -84,16 +84,16 @@ const BACKEND_URL =
 "https://script.google.com/macros/s/AKfycbwfmbM-mhtDYLIPuETanm7yAQP1YLGEQtxbwXaSP2moySshiyYgBJBui1SEb2tVChlGVQ/exec";
 
 /* ================= RELÓGIO ================= */
-function relogio() {
+function atualizarRelogio() {
   const a = new Date();
   dataHora.innerText =
     "Hoje: " + a.toLocaleDateString() + " – " + a.toLocaleTimeString();
 }
-setInterval(relogio, 1000);
-relogio();
+setInterval(atualizarRelogio, 1000);
+atualizarRelogio();
 
 /* ================= ESTADO ================= */
-function estado() {
+function getEstado() {
   return localStorage.getItem("estado") || "FORA";
 }
 function setEstado(e) {
@@ -101,16 +101,16 @@ function setEstado(e) {
   statusAtual.innerText =
     "Status: " + (e === "DENTRO" ? "Em serviço" : "Fora");
 }
-setEstado(estado());
+setEstado(getEstado());
 
 /* ================= UI ================= */
-function status(txt, cls) {
-  msg.className = "status " + cls;
-  msg.innerText = txt;
+function status(msgTexto, classe) {
+  msg.className = "status " + classe;
+  msg.innerText = msgTexto;
 }
 
 /* ================= SALVAR LOCAL ================= */
-function salvar(tipo) {
+function salvarLocal(tipo) {
   let dados = JSON.parse(localStorage.getItem("pontos") || "[]");
 
   dados.push({
@@ -121,16 +121,17 @@ function salvar(tipo) {
   });
 
   localStorage.setItem("pontos", JSON.stringify(dados));
-  ultimaAcao.innerText = "Última ação: " + tipo;
+  ultimaAcao.innerText =
+    "Última ação: " + tipo + " às " + new Date().toLocaleTimeString();
 }
 
-/* ================= SYNC FINAL (NÃO TRAVA) ================= */
-function sync() {
+/* ================= ENVIAR PARA PLANILHA ================= */
+function sincronizar() {
 
   let dados = JSON.parse(localStorage.getItem("pontos") || "[]");
-  let pend = dados.filter(d => !d.enviado);
+  let pendentes = dados.filter(d => !d.enviado);
 
-  if (!pend.length) {
+  if (!pendentes.length) {
     status("✔ Registro enviado", "ok");
     return;
   }
@@ -140,18 +141,13 @@ function sync() {
     return;
   }
 
-  // 🔒 REGRA DEFINITIVA:
-  // Se tem internet → tenta enviar → marca como enviado
-  try {
-    fetch(BACKEND_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(pend)
-    });
-  } catch (e) {
-    // ignorado propositalmente
-  }
+  fetch(BACKEND_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(pendentes)
+  });
 
+  // Marca como enviado (Apps Script não confirma, mas grava)
   dados.forEach(d => d.enviado = true);
   localStorage.setItem("pontos", JSON.stringify(dados));
 
@@ -159,24 +155,24 @@ function sync() {
 }
 
 /* ================= BOTÕES ================= */
-function entrada() {
-  if (estado() === "DENTRO") {
+function registrarEntrada() {
+  if (getEstado() === "DENTRO") {
     status("Já está em serviço", "alerta");
     return;
   }
-  salvar("ENTRADA");
+  salvarLocal("ENTRADA");
   setEstado("DENTRO");
-  sync();
+  sincronizar();
 }
 
-function saida() {
-  if (estado() === "FORA") {
+function registrarSaida() {
+  if (getEstado() === "FORA") {
     status("Não pode sair sem entrar", "alerta");
     return;
   }
-  salvar("SAÍDA");
+  salvarLocal("SAÍDA");
   setEstado("FORA");
-  sync();
+  sincronizar();
 }
 
 /* ================= RELATÓRIO ================= */
@@ -187,24 +183,24 @@ function gerarRelatorio() {
   let totalMin = 0;
   let html = "";
 
-  for (let i=0;i<dados.length;i+=2) {
+  for (let i = 0; i < dados.length; i += 2) {
     if (!dados[i+1]) break;
     let e = new Date(dados[i].dataHora);
     let s = new Date(dados[i+1].dataHora);
-    let min = Math.round((s-e)/60000);
+    let min = Math.round((s - e) / 60000);
     totalMin += min;
     html += `${e.toLocaleDateString()} — ${e.toLocaleTimeString()} / ${s.toLocaleTimeString()}<br>`;
   }
 
-  let h = Math.floor(totalMin/60);
-  let m = totalMin%60;
+  let h = Math.floor(totalMin / 60);
+  let m = totalMin % 60;
   html += `<br><strong>Total: ${h}h:${m.toString().padStart(2,"0")}min</strong>`;
 
   conteudoRel.innerHTML = html;
   relatorio.style.display = "block";
 }
 
-window.addEventListener("online", sync);
+window.addEventListener("online", sincronizar);
 </script>
 
 </body>
