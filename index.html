@@ -1,10 +1,11 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ponto Offline</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Controle de Ponto Offline</title>
 
+  <!-- PWA -->
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0f172a">
 
@@ -12,16 +13,20 @@
     body {
       font-family: Arial, sans-serif;
       background: #0f172a;
-      color: #fff;
+      color: #ffffff;
       text-align: center;
       padding: 20px;
     }
-    h1 { margin-bottom: 5px; }
+    h1 {
+      margin-bottom: 5px;
+    }
     input {
       width: 90%;
       padding: 12px;
       font-size: 16px;
       margin: 10px 0;
+      border-radius: 6px;
+      border: none;
     }
     button {
       width: 90%;
@@ -31,6 +36,7 @@
       border: none;
       border-radius: 8px;
       cursor: pointer;
+      color: #fff;
     }
     .entrar { background: #22c55e; }
     .sair { background: #ef4444; }
@@ -45,28 +51,35 @@
 </head>
 <body>
 
-<h1>Controle de Ponto</h1>
-<p>Offline</p>
+  <h1>Controle de Ponto</h1>
+  <p>Modo Offline</p>
 
-<input id="funcionario" placeholder="Nome do funcionário">
+  <input id="funcionario" placeholder="Nome do funcionário" />
 
-<button class="entrar" onclick="registrar('ENTRADA')">ENTRAR</button>
-<button class="sair" onclick="registrar('SAÍDA')">SAIR</button>
-<button class="sync" onclick="sincronizar()">SINCRONIZAR</button>
+  <button class="entrar" onclick="registrar('ENTRADA')">ENTRAR</button>
+  <button class="sair" onclick="registrar('SAÍDA')">SAIR</button>
+  <button class="sync" onclick="sincronizar()">SINCRONIZAR</button>
 
-<div class="box" id="status">
-  Nenhum registro
-</div>
+  <div class="box" id="status">
+    Nenhum registro ainda
+  </div>
 
 <script>
+/* ===========================
+   SERVICE WORKER
+=========================== */
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js');
 }
 
+/* ===========================
+   REGISTRAR ENTRADA / SAÍDA
+=========================== */
 function registrar(tipo) {
-  const nome = document.getElementById("funcionario").value;
+
+  const nome = document.getElementById("funcionario").value.trim();
   if (!nome) {
-    alert("Informe o nome");
+    alert("Informe o nome do funcionário");
     return;
   }
 
@@ -82,13 +95,16 @@ function registrar(tipo) {
   localStorage.setItem("pontos", JSON.stringify(dados));
 
   document.getElementById("status").innerHTML =
-    `${tipo} registrada<br>${new Date().toLocaleString()}`;
+    `<strong>${tipo}</strong> registrada<br>${new Date().toLocaleString()}`;
 }
 
+/* ===========================
+   SINCRONIZAR COM GOOGLE
+=========================== */
 async function sincronizar() {
 
   if (!navigator.onLine) {
-    alert("Sem internet. Será sincronizado depois.");
+    alert("Sem internet. Os dados serão enviados depois.");
     return;
   }
 
@@ -96,13 +112,34 @@ async function sincronizar() {
   let pendentes = dados.filter(d => !d.sincronizado);
 
   if (pendentes.length === 0) {
-    alert("Nada para sincronizar");
+    alert("Nenhum dado pendente para sincronizar.");
     return;
   }
 
-  alert("Sincronização simulada (backend entra no próximo passo)");
+  try {
+    const response = await fetch(
+      "COLE_AQUI_A_URL_DO_WEB_APP",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(pendentes)
+      }
+    );
+
+    if (response.ok) {
+      dados.forEach(d => d.sincronizado = true);
+      localStorage.setItem("pontos", JSON.stringify(dados));
+      alert("Sincronização concluída com sucesso!");
+    } else {
+      alert("Erro ao enviar dados.");
+    }
+
+  } catch (erro) {
+    alert("Falha de conexão.");
+  }
 }
 </script>
 
 </body>
 </html>
+
