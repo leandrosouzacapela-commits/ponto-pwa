@@ -22,15 +22,9 @@ body {
   padding: 40px 20px;
 }
 
-h1 {
-  font-size: 36px;
-  margin-bottom: 20px;
-}
+h1 { font-size: 36px; margin-bottom: 20px; }
 
-.info {
-  margin: 6px 0;
-  font-size: 18px;
-}
+.info { margin: 6px 0; font-size: 18px; }
 
 button {
   width: 100%;
@@ -47,82 +41,46 @@ button {
 .btn-sair   { background: #ef4444; }
 .btn-rel    { background: #2563eb; }
 
-.status-box {
-  margin: 18px 0;
-  padding: 14px;
-  border-radius: 10px;
-  font-size: 20px;
-  background: #16a34a;
-}
-
 .hidden { display: none; }
 
-/* ================= RELATÓRIO ================= */
+/* ===== RELATÓRIO ===== */
 #relatorio {
   display: none;
   background: #ffffff;
-  color: #000000;
+  color: #000;
   padding: 25px;
   margin-top: 20px;
   text-align: left;
 }
 
-#relatorio * {
-  color: #000000;
+#relatorio * { color: #000; }
+
+.resumo {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin: 15px 0 20px 0;
 }
 
-#tituloRelatorio {
-  text-align: center;
-  font-size: 20px;
-  font-weight: bold;
-}
-
-#tituloFuncionario {
-  text-align: center;
-  font-size: 18px;
-  margin-top: 4px;
-}
-
-#periodoRelatorio {
-  text-align: center;
-  font-weight: bold;
-  margin: 10px 0 16px 0;
-}
-
-#boxTotalHoras {
+.caixa {
   border: 2px solid #2563eb;
   border-radius: 10px;
-  padding: 16px;
+  padding: 10px;
   text-align: center;
-  font-size: 18px;
   font-weight: bold;
-  margin-bottom: 20px;
 }
 
-/* ================= IMPRESSÃO ================= */
+.caixa span {
+  display: block;
+  margin-top: 6px;
+  font-size: 16px;
+}
+
+/* ===== PRINT ===== */
 @media print {
-
-  body {
-    background: #ffffff !important;
-    color: #000000 !important;
-  }
-
-  .container > *:not(#relatorio) {
-    display: none !important;
-  }
-
-  #relatorio {
-    display: block !important;
-    background: #ffffff !important;
-  }
-
-  #relatorio * {
-    color: #000000 !important;
-  }
-
-  .botoes-relatorio {
-    display: none !important;
-  }
+  body { background: #fff; color: #000; }
+  .container > *:not(#relatorio) { display: none; }
+  #relatorio { display: block; }
 }
 </style>
 </head>
@@ -135,38 +93,32 @@ button {
 
   <div class="info"><strong>Funcionário:</strong></div>
   <div class="info">
-    <input
-      id="nomeFuncionario"
+    <input id="nomeFuncionario"
       value="EDENILSON DE SOUZA PEREIRA"
-      onblur="salvarNome()"
+      onblur="localStorage.setItem('nomeFuncionario',this.value)"
       style="background:transparent;border:none;color:#fff;font-size:18px;font-weight:bold;text-align:center;width:100%;outline:none;">
   </div>
 
   <div class="info" id="dataHora"></div>
-  <div class="info" id="statusAtual"></div>
-  <div class="info" id="ultimaAcao"></div>
 
   <button class="btn-entrar" onclick="registrar('ENTRADA')">ENTRAR</button>
   <button class="btn-sair" onclick="registrar('SAIDA')">SAIR</button>
 
-  <div id="statusEnvio" class="status-box hidden">✔ Registro enviado</div>
-
-  <button class="btn-rel" onclick="toggleRelatorio()">RELATÓRIO / PDF</button>
+  <button class="btn-rel" onclick="abrirRelatorio()">RELATÓRIO / PDF</button>
 
   <div id="relatorio">
-    <div id="tituloRelatorio">RELATÓRIO DE PONTO</div>
-    <div id="tituloFuncionario"></div>
-    <div id="periodoRelatorio"></div>
+    <h2 style="text-align:center">RELATÓRIO DE PONTO</h2>
+    <h3 id="tituloNome" style="text-align:center"></h3>
+    <div id="periodoRelatorio" style="text-align:center;font-weight:bold"></div>
 
-    <div class="botoes-relatorio" style="text-align:center; margin-bottom:12px;">
-      <button onclick="gerarRelatorio('DIÁRIO')">Diário</button>
-      <button onclick="gerarRelatorio('SEMANAL')">Semanal</button>
-      <button onclick="gerarRelatorio('MENSAL')">Mensal</button>
-      <button onclick="gerarRelatorio('ANUAL')">Anual</button>
+    <div class="resumo">
+      <div class="caixa">DIA<span id="rDia">00h:00min</span></div>
+      <div class="caixa">SEMANA<span id="rSemana">00h:00min</span></div>
+      <div class="caixa">MÊS<span id="rMes">00h:00min</span></div>
+      <div class="caixa">ANO<span id="rAno">00h:00min</span></div>
     </div>
 
-    <div id="boxTotalHoras">TOTAL: 00h:00min</div>
-    <div id="conteudoRel"></div>
+    <div id="listaRegistros"></div>
 
     <br>
     <button onclick="window.print()">Imprimir / Salvar PDF</button>
@@ -175,85 +127,57 @@ button {
 </div>
 
 <script>
-/* ===== RELÓGIO ===== */
-setInterval(() => {
-  const d = new Date();
-  dataHora.innerText =
-    "Hoje: " + d.toLocaleDateString() + " — " + d.toLocaleTimeString();
-}, 1000);
+setInterval(()=> {
+  const d=new Date();
+  dataHora.innerText="Hoje: "+d.toLocaleDateString()+" — "+d.toLocaleTimeString();
+},1000);
 
-/* ===== NOME ===== */
-function salvarNome() {
-  localStorage.setItem("nomeFuncionario", nomeFuncionario.value);
-}
-if (localStorage.getItem("nomeFuncionario"))
-  nomeFuncionario.value = localStorage.getItem("nomeFuncionario");
+if(localStorage.getItem("nomeFuncionario"))
+  nomeFuncionario.value=localStorage.getItem("nomeFuncionario");
 
-/* ===== ESTADO ===== */
-function getEstado(){ return localStorage.getItem("estado") || "FORA"; }
-function setEstado(e){
-  localStorage.setItem("estado", e);
-  statusAtual.innerText = "Status: " + (e==="DENTRO"?"Em serviço":"Fora");
-}
-setEstado(getEstado());
-
-/* ===== REGISTRO ===== */
 function registrar(tipo){
-  if(tipo==="ENTRADA" && getEstado()==="DENTRO") return;
-  if(tipo==="SAIDA" && getEstado()==="FORA") return;
-
-  const agora = new Date();
-  const dados = JSON.parse(localStorage.getItem("pontos") || "[]");
-  dados.push({ tipo, iso: agora.toISOString() });
-  localStorage.setItem("pontos", JSON.stringify(dados));
-
-  setEstado(tipo==="ENTRADA"?"DENTRO":"FORA");
-  ultimaAcao.innerText = "Última ação: "+tipo+" às "+agora.toLocaleTimeString();
-  statusEnvio.classList.remove("hidden");
+  const dados=JSON.parse(localStorage.getItem("pontos")||"[]");
+  dados.push({tipo,iso:new Date().toISOString()});
+  localStorage.setItem("pontos",JSON.stringify(dados));
 }
 
-/* ===== RELATÓRIO ===== */
-function toggleRelatorio(){
-  relatorio.style.display = relatorio.style.display==="none" ? "block" : "none";
+function abrirRelatorio(){
+  relatorio.style.display=relatorio.style.display==="none"?"block":"none";
+  gerarRelatorio();
 }
 
-function gerarRelatorio(tipo){
+function minToTxt(min){
+  return String(Math.floor(min/60)).padStart(2,"0")+"h:"+String(min%60).padStart(2,"0")+"min";
+}
 
-  tituloRelatorio.innerText = "RELATÓRIO DE PONTO – " + tipo;
-  tituloFuncionario.innerText = "NOME: " + nomeFuncionario.value;
+function gerarRelatorio(){
+  const regs=JSON.parse(localStorage.getItem("pontos")||"[]");
+  const hoje=new Date();
+  let dia=0,sem=0,mes=0,ano=0;
+  let html="",datas=[];
 
-  const registros = JSON.parse(localStorage.getItem("pontos") || []);
-  let totalMin = 0;
-  let linhas = [];
-  let datas = [];
+  for(let i=0;i<regs.length;i++){
+    const r=regs[i];
+    const d=new Date(r.iso);
 
-  registros.forEach((r,i)=>{
-    if(r.tipo==="ENTRADA" && registros[i+1]?.tipo==="SAIDA"){
-      const e = new Date(r.iso);
-      const s = new Date(registros[i+1].iso);
-      const min = Math.round((s-e)/60000);
-      totalMin += min;
-      datas.push(e);
-      linhas.push(`${e.toLocaleDateString()} — ${e.toLocaleTimeString()} → ${s.toLocaleTimeString()}`);
-    }
-  });
+    html+=`${d.toLocaleDateString()} — ${r.tipo} — ${d.toLocaleTimeString()}<br>`;
+    datas.push(d);
 
-  if(datas.length){
-    periodoRelatorio.innerText =
-      "PERÍODO: " +
-      datas[0].toLocaleDateString() +
-      " a " +
-      datas[datas.length-1].toLocaleDateString();
-  } else {
-    periodoRelatorio.innerText = "PERÍODO: —";
+    if(d.toDateString()===hoje.toDateString()) dia+=0;
+    if(d.getMonth()===hoje.getMonth()) mes+=0;
+    if(d.getFullYear()===hoje.getFullYear()) ano+=0;
   }
 
-  const h = String(Math.floor(totalMin/60)).padStart(2,"0");
-  const m = String(totalMin%60).padStart(2,"0");
-  boxTotalHoras.innerText = `TOTAL DE HORAS: ${h}h:${m}min`;
+  tituloNome.innerText="NOME: "+nomeFuncionario.value;
+  if(datas.length)
+    periodoRelatorio.innerText="PERÍODO: "+datas[0].toLocaleDateString()+" a "+datas[datas.length-1].toLocaleDateString();
 
-  conteudoRel.innerHTML =
-    linhas.length ? linhas.join("<br>") : "<em>Nenhum registro encontrado.</em>";
+  rDia.innerText=minToTxt(dia);
+  rSemana.innerText=minToTxt(sem);
+  rMes.innerText=minToTxt(mes);
+  rAno.innerText=minToTxt(ano);
+
+  listaRegistros.innerHTML=html||"<em>Nenhum registro.</em>";
 }
 </script>
 
