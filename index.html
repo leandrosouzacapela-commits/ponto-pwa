@@ -49,10 +49,7 @@ button {
   background: #16a34a;
 }
 
-.status-erro {
-  background: #dc2626;
-}
-
+.status-erro { background: #dc2626; }
 .hidden { display: none; }
 
 /* ===== RELATÓRIO ===== */
@@ -137,27 +134,29 @@ button {
 
 <script>
 /* ================= CONFIG SUPABASE ================= */
-/* 🔴 TROQUE ESTES 2 VALORES */
-const SUPABASE_URL = "https://mhgpoimyibxknahkjmea.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1oZ3BvaW15aWJ4a25haGtqbWVhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc3NTE5OTcsImV4cCI6MjA4MzMyNzk5N30.YX2nkTSoP4PQgmGAeTcpL3SaPoisqpEr62FhEk2G_qs";
-;
+const SUPABASE_URL = "https://SEU_PROJETO.supabase.co";
+const SUPABASE_ANON_KEY = "SUA_ANON_PUBLIC_KEY";
 /* ================================================== */
 
+/* ===== RELÓGIO ===== */
 setInterval(()=> {
-  const d=new Date();
-  dataHora.innerText="Hoje: "+d.toLocaleDateString()+" — "+d.toLocaleTimeString();
-},1000);
+  const d = new Date();
+  dataHora.innerText = "Hoje: " + d.toLocaleDateString() + " — " + d.toLocaleTimeString();
+}, 1000);
 
-if(localStorage.getItem("nomeFuncionario"))
-  nomeFuncionario.value=localStorage.getItem("nomeFuncionario");
+/* ===== NOME ===== */
+if (localStorage.getItem("nomeFuncionario"))
+  nomeFuncionario.value = localStorage.getItem("nomeFuncionario");
 
+/* ===== ESTADO ===== */
 function getEstado(){ return localStorage.getItem("estado") || "FORA"; }
 function setEstado(e){
-  localStorage.setItem("estado",e);
-  statusAtual.innerText="Status: "+(e==="DENTRO"?"Em serviço":"Fora");
+  localStorage.setItem("estado", e);
+  statusAtual.innerText = "Status: " + (e==="DENTRO"?"Em serviço":"Fora");
 }
 setEstado(getEstado());
 
+/* ===== ENVIO SUPABASE ===== */
 async function enviarSupabase(nome,tipo,iso){
   try{
     const res = await fetch(
@@ -192,8 +191,8 @@ async function enviarSupabase(nome,tipo,iso){
   }
 }
 
+/* ===== REGISTRAR ===== */
 function registrar(tipo){
-
   if(tipo==="ENTRADA" && getEstado()==="DENTRO") return;
   if(tipo==="SAIDA" && getEstado()==="FORA") return;
 
@@ -201,19 +200,34 @@ function registrar(tipo){
   const iso=agora.toISOString();
   const nome=nomeFuncionario.value.trim()||"SEM NOME";
 
-  const dados=JSON.parse(localStorage.getItem("pontos")||"[]");
-  dados.push({tipo,iso});
-  localStorage.setItem("pontos",JSON.stringify(dados));
-
   setEstado(tipo==="ENTRADA"?"DENTRO":"FORA");
   ultimaAcao.innerText=`Última ação: ${tipo} às ${agora.toLocaleTimeString()}`;
 
   enviarSupabase(nome,tipo,iso);
 }
 
+/* ===== BUSCAR REGISTROS DO SUPABASE ===== */
+async function buscarRegistrosSupabase(nome){
+  const url =
+    `${SUPABASE_URL}/rest/v1/registros_ponto` +
+    `?select=tipo,data_hora` +
+    `&nome=eq.${encodeURIComponent(nome)}` +
+    `&order=data_hora.asc`;
+
+  const res = await fetch(url, {
+    headers:{
+      "apikey":SUPABASE_ANON_KEY,
+      "Authorization":"Bearer "+SUPABASE_ANON_KEY
+    }
+  });
+
+  if(!res.ok) throw new Error(await res.text());
+  return await res.json();
+}
+
 /* ===== RELATÓRIO ===== */
 function abrirRelatorio(){
-  relatorio.style.display=relatorio.style.display==="none"?"block":"none";
+  relatorio.style.display = relatorio.style.display==="none"?"block":"none";
   gerarRelatorio();
 }
 
@@ -221,39 +235,53 @@ function minToTxt(min){
   return String(Math.floor(min/60)).padStart(2,"0")+"h:"+String(min%60).padStart(2,"0")+"min";
 }
 
-function gerarRelatorio(){
-  const regs=JSON.parse(localStorage.getItem("pontos")||"[]");
+async function gerarRelatorio(){
+  const nome = nomeFuncionario.value.trim();
+  tituloFuncionario.innerText = "NOME: " + nome;
+
+  let registros;
+  try{
+    registros = await buscarRegistrosSupabase(nome);
+  }catch(e){
+    listaRegistros.innerHTML="<span style='color:red'>Erro ao buscar dados da nuvem.</span>";
+    return;
+  }
+
   const hoje=new Date();
   let dia=0,sem=0,mes=0,ano=0;
   let html="",datas=[];
 
-  for(let i=0;i<regs.length;i++){
-    const r=regs[i];
-    const d=new Date(r.iso);
+  for(let i=0;i<registros.length;i++){
+    const r=registros[i];
+    const d=new Date(r.data_hora);
     datas.push(d);
+
     html+=`${d.toLocaleDateString()} — ${r.tipo} — ${d.toLocaleTimeString()}<br>`;
 
-    if(r.tipo==="ENTRADA" && regs[i+1]?.tipo==="SAIDA"){
-      const s=new Date(regs[i+1].iso);
+    if(r.tipo==="ENTRADA" && registros[i+1]?.tipo==="SAIDA"){
+      const s=new Date(registros[i+1].data_hora);
       const min=Math.round((s-d)/60000);
 
       if(d.toDateString()===hoje.toDateString()) dia+=min;
-      if(d.getMonth()===hoje.getMonth()) mes+=min;
+      if(d.getMonth()===hoje.getMonth() && d.getFullYear()===hoje.getFullYear()) mes+=min;
       if(d.getFullYear()===hoje.getFullYear()) ano+=min;
       sem+=min;
     }
   }
 
-  tituloFuncionario.innerText="NOME: "+nomeFuncionario.value;
-  if(datas.length)
-    periodoRelatorio.innerText="PERÍODO: "+datas[0].toLocaleDateString()+" a "+datas[datas.length-1].toLocaleDateString();
+  if(datas.length){
+    periodoRelatorio.innerText =
+      "PERÍODO: "+datas[0].toLocaleDateString()+" a "+datas[datas.length-1].toLocaleDateString();
+  }else{
+    periodoRelatorio.innerText="PERÍODO: —";
+  }
 
   rDia.innerText=minToTxt(dia);
   rSemana.innerText=minToTxt(sem);
   rMes.innerText=minToTxt(mes);
   rAno.innerText=minToTxt(ano);
 
-  listaRegistros.innerHTML=html||"<em>Nenhum registro.</em>";
+  listaRegistros.innerHTML = html || "<em>Nenhum registro encontrado.</em>";
 }
 </script>
 
