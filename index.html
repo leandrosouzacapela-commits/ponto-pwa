@@ -8,37 +8,51 @@
 <style>
 body {
   font-family: Arial, sans-serif;
-  background: #111827;
-  color: #ffffff;
+  background: #0f172a;
+  color: #fff;
   text-align: center;
   padding: 20px;
 }
 
 h1 { margin-bottom: 10px; }
-.info { margin: 6px 0; }
+
+.box {
+  margin: 6px 0;
+}
 
 button {
   width: 100%;
   padding: 18px;
-  margin: 12px 0;
+  margin: 10px 0;
   font-size: 18px;
-  border-radius: 8px;
+  border-radius: 10px;
   border: none;
   color: #fff;
 }
 
 .entrar { background: #22c55e; }
 .sair   { background: #ef4444; }
+.rel    { background: #2563eb; }
 
 .status {
-  margin-top: 15px;
-  padding: 12px;
-  border-radius: 6px;
+  margin-top: 10px;
+  padding: 10px;
+  border-radius: 8px;
   font-weight: bold;
 }
 
 .ok { background: #16a34a; }
 .alerta { background: #dc2626; }
+.info { background: #1e40af; }
+
+#relatorio {
+  display: none;
+  background: #fff;
+  color: #000;
+  padding: 15px;
+  margin-top: 15px;
+  text-align: left;
+}
 </style>
 </head>
 
@@ -46,16 +60,38 @@ button {
 
 <h1>Controle de Ponto</h1>
 
-<div class="info">Funcionário:</div>
-<div class="info"><strong>EDENILSON DE SOUZA PEREIRA</strong></div>
+<div class="box">Funcionário:</div>
+<div class="box">
+  <strong id="nomeFunc">EDENILSON DE SOUZA PEREIRA</strong>
+</div>
 
-<div class="info" id="dataHora"></div>
-<div class="info" id="statusAtual"></div>
+<div class="box" id="dataHora"></div>
+<div class="box" id="statusAtual"></div>
+<div class="box" id="ultimaAcao"></div>
 
 <button class="entrar" onclick="registrar('ENTRADA')">ENTRAR</button>
 <button class="sair" onclick="registrar('SAIDA')">SAIR</button>
 
-<div id="msg" class="status">Pronto para registrar</div>
+<div id="msg" class="status info">Pronto para registrar</div>
+
+<button class="rel" onclick="abrirRelatorio()">📄 RELATÓRIO / PDF</button>
+
+<div id="relatorio">
+  <h3 style="text-align:center">Relatório de Ponto</h3>
+
+  <div>
+    <button onclick="gerarRelatorio('DIA')">Diário</button>
+    <button onclick="gerarRelatorio('SEMANA')">Semanal</button>
+    <button onclick="gerarRelatorio('MES')">Mensal</button>
+    <button onclick="gerarRelatorio('ANO')">Anual</button>
+  </div>
+
+  <hr>
+  <div id="conteudoRel"></div>
+
+  <br>
+  <button onclick="window.print()">Imprimir / Salvar PDF</button>
+</div>
 
 <script>
 /* ================= CONFIG ================= */
@@ -74,17 +110,16 @@ setInterval(() => {
 function getEstado() {
   return localStorage.getItem("estado") || "FORA";
 }
-
 function setEstado(e) {
   localStorage.setItem("estado", e);
   statusAtual.innerText =
     "Status: " + (e === "DENTRO" ? "Em serviço" : "Fora");
 }
-
 setEstado(getEstado());
 
-function status(txt, classe) {
-  msg.className = "status " + classe;
+/* ================= UI ================= */
+function aviso(txt, cls) {
+  msg.className = "status " + cls;
   msg.innerText = txt;
 }
 
@@ -92,63 +127,74 @@ function status(txt, classe) {
 function registrar(tipo) {
 
   if (tipo === "ENTRADA" && getEstado() === "DENTRO") {
-    status("Já está em serviço", "alerta");
+    aviso("Já está em serviço", "alerta");
     return;
   }
 
   if (tipo === "SAIDA" && getEstado() === "FORA") {
-    status("Não pode sair sem entrar", "alerta");
+    aviso("Não pode sair sem entrar", "alerta");
     return;
   }
 
-  const iso = new Date().toISOString();
+  const agora = new Date();
+  const iso = agora.toISOString();
 
+  // salva local
+  let dados = JSON.parse(localStorage.getItem("pontos") || "[]");
+  dados.push({ tipo, iso });
+  localStorage.setItem("pontos", JSON.stringify(dados));
+
+  ultimaAcao.innerText =
+    "Última ação: " + tipo + " às " + agora.toLocaleTimeString();
+
+  // ENVIO REAL PARA PLANILHA (GET)
   const url =
     BACKEND_URL +
     "?nome=" + encodeURIComponent(FUNCIONARIO) +
     "&tipo=" + encodeURIComponent(tipo) +
     "&iso="  + encodeURIComponent(iso);
 
-  // ENVIO REAL (SEM CORS, SEM POST)
   fetch(url);
 
   setEstado(tipo === "ENTRADA" ? "DENTRO" : "FORA");
-  status("✔ Registro enviado", "ok");
+  aviso("✔ Registro enviado", "ok");
 }
-</script>
 
-</body>
-</html>
-<div>Funcionário:</div>
-<div><strong>EDENILSON DE SOUZA PEREIRA</strong></div>
+/* ================= RELATÓRIO ================= */
+function abrirRelatorio() {
+  relatorio.style.display =
+    relatorio.style.display === "none" ? "block" : "none";
+}
 
-<div id="statusAtual"></div>
+function gerarRelatorio(filtro) {
 
-<button class="entrar" onclick="registrar('ENTRADA')">ENTRAR</button>
-<button class="sair" onclick="registrar('SAÍDA')">SAIR</button>
+  let dados = JSON.parse(localStorage.getItem("pontos") || []);
+  let agora = new Date();
+  let totalMin = 0;
+  let html = "";
 
-<div id="msg" class="status">Pronto</div>
+  for (let i = 0; i < dados.length; i += 2) {
+    if (!dados[i+1]) break;
 
-<script>
-const FUNCIONARIO = "EDENILSON DE SOUZA PEREIRA";
-const BACKEND_URL =
-"https://script.google.com/macros/s/AKfycbwfmbM-mhtDYLIPuETanm7yAQP1YLGEQtxbwXaSP2moySshiyYgBJBui1SEb2tVChlGVQ/exec";
+    let e = new Date(dados[i].iso);
+    let s = new Date(dados[i+1].iso);
 
-function registrar(tipo) {
+    if (filtro === "DIA" && e.toDateString() !== agora.toDateString()) continue;
+    if (filtro === "MES" && e.getMonth() !== agora.getMonth()) continue;
+    if (filtro === "ANO" && e.getFullYear() !== agora.getFullYear()) continue;
 
-  const iso = new Date().toISOString();
+    let min = Math.round((s - e) / 60000);
+    totalMin += min;
 
-  const url =
-    BACKEND_URL +
-    "?nome=" + encodeURIComponent(FUNCIONARIO) +
-    "&tipo=" + encodeURIComponent(tipo) +
-    "&iso="  + encodeURIComponent(iso);
+    html += `${e.toLocaleDateString()} — ${e.toLocaleTimeString()} / ${s.toLocaleTimeString()}<br>`;
+  }
 
-  fetch(url);
+  let h = Math.floor(totalMin / 60);
+  let m = totalMin % 60;
 
-  msg.className = "status ok";
-  msg.innerText = "✔ Registro enviado";
+  html += `<br><strong>Total: ${h}h:${m.toString().padStart(2,"0")}min</strong>`;
 
+  conteudoRel.innerHTML = html;
 }
 </script>
 
