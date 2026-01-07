@@ -35,7 +35,7 @@ h1 {
 button {
   width: 100%;
   padding: 22px;
-  margin: 16px 0;
+  margin: 14px 0;
   font-size: 22px;
   border-radius: 12px;
   border: none;
@@ -57,24 +57,42 @@ button {
 
 .hidden { display: none; }
 
+/* RELATÓRIO */
 #relatorio {
   display: none;
   background: #ffffff;
   color: #000;
-  padding: 20px;
+  padding: 25px;
   margin-top: 20px;
   text-align: left;
 }
 
 #relatorio h2 {
   text-align: center;
-  font-size: 18px;
-  margin-bottom: 10px;
+  font-size: 20px;
+  margin-bottom: 6px;
 }
 
 #relatorio h3 {
   text-align: center;
-  margin-top: 0;
+  margin: 0;
+  font-size: 18px;
+}
+
+#periodoRelatorio {
+  text-align: center;
+  font-weight: bold;
+  margin: 8px 0 16px 0;
+}
+
+#boxTotalHoras {
+  border: 2px solid #2563eb;
+  border-radius: 10px;
+  padding: 16px;
+  text-align: center;
+  font-size: 18px;
+  font-weight: bold;
+  margin-bottom: 20px;
 }
 
 @media print {
@@ -123,15 +141,17 @@ button {
   <div id="relatorio">
     <h2>RELATÓRIO DE PONTO</h2>
     <h3 id="tituloFuncionario"></h3>
+    <div id="periodoRelatorio"></div>
 
-    <div style="text-align:center; margin-bottom:10px;">
+    <div style="text-align:center; margin-bottom:12px;">
       <button onclick="gerarRelatorio('DIA')">Diário</button>
       <button onclick="gerarRelatorio('SEMANA')">Semanal</button>
       <button onclick="gerarRelatorio('MES')">Mensal</button>
       <button onclick="gerarRelatorio('ANO')">Anual</button>
     </div>
 
-    <hr>
+    <div id="boxTotalHoras">TOTAL: 00h:00min</div>
+
     <div id="conteudoRel"></div>
 
     <br>
@@ -155,11 +175,10 @@ function salvarNome() {
   const nome = nomeFuncionario.value.trim();
   if (nome) localStorage.setItem("nomeFuncionario", nome);
 }
-function carregarNome() {
+(function carregarNome(){
   const salvo = localStorage.getItem("nomeFuncionario");
   if (salvo) nomeFuncionario.value = salvo;
-}
-carregarNome();
+})();
 
 /* ===== ESTADO ===== */
 function getEstado() {
@@ -180,11 +199,7 @@ function registrar(tipo) {
   const agora = new Date();
   const dados = JSON.parse(localStorage.getItem("pontos") || "[]");
 
-  dados.push({
-    tipo,
-    iso: agora.toISOString()
-  });
-
+  dados.push({ tipo, iso: agora.toISOString() });
   localStorage.setItem("pontos", JSON.stringify(dados));
 
   setEstado(tipo === "ENTRADA" ? "DENTRO" : "FORA");
@@ -204,12 +219,14 @@ function toggleRelatorio() {
 function gerarRelatorio(tipo) {
 
   const nome = nomeFuncionario.value;
-  tituloFuncionario.innerText = nome;
+  tituloFuncionario.innerText = "NOME: " + nome;
 
   const registros = JSON.parse(localStorage.getItem("pontos") || []);
   const agora = new Date();
+
   let totalMin = 0;
-  let html = "";
+  let linhas = "";
+  let datas = [];
 
   for (let i = 0; i < registros.length; i += 2) {
     if (!registros[i+1]) break;
@@ -223,16 +240,32 @@ function gerarRelatorio(tipo) {
 
     const min = Math.round((s - e) / 60000);
     totalMin += min;
+    datas.push(e);
 
-    html += `${e.toLocaleDateString()} — ${e.toLocaleTimeString()} / ${s.toLocaleTimeString()}<br>`;
+    linhas += `
+      <div style="margin-bottom:6px">
+        ${e.toLocaleDateString()} — ${e.toLocaleTimeString()}
+        → ${s.toLocaleTimeString()}
+      </div>
+    `;
   }
+
+  let periodo = "—";
+  if (datas.length) {
+    periodo =
+      datas[0].toLocaleDateString() +
+      " a " +
+      datas[datas.length - 1].toLocaleDateString();
+  }
+
+  periodoRelatorio.innerText = "PERÍODO: " + periodo;
 
   const h = Math.floor(totalMin / 60).toString().padStart(2,"0");
   const m = (totalMin % 60).toString().padStart(2,"0");
 
-  html += `<br><strong>Total: ${h}h:${m}min</strong>`;
-
-  conteudoRel.innerHTML = html;
+  boxTotalHoras.innerText = "TOTAL DE HORAS: " + h + "h:" + m + "min";
+  conteudoRel.innerHTML =
+    linhas || "<em>Nenhum registro encontrado neste período.</em>";
 }
 </script>
 
