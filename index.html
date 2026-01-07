@@ -16,31 +16,27 @@ body {
   text-align: center;
   padding: 20px;
 }
-button, select, input {
+button {
   width: 90%;
-  padding: 15px;
-  margin: 8px 0;
-  font-size: 17px;
+  padding: 16px;
+  margin: 10px 0;
+  font-size: 18px;
   border-radius: 8px;
   border: none;
+  color: #fff;
 }
-button { color: #fff; }
 .entrar { background: #22c55e; }
 .sair { background: #ef4444; }
-.sync { background: #3b82f6; }
-.rel { background: #f59e0b; }
-
-.aviso {
+.status {
   margin-top: 15px;
   padding: 12px;
   border-radius: 8px;
   font-weight: bold;
-  display: none;
 }
 .ok { background: #16a34a; }
-.erro { background: #dc2626; }
+.off { background: #f59e0b; }
 .info { background: #2563eb; }
-.alerta { background: #f59e0b; }
+.alerta { background: #dc2626; }
 
 #relatorio {
   display: none;
@@ -48,16 +44,6 @@ button { color: #fff; }
   color: #000;
   padding: 20px;
   margin-top: 20px;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-th, td {
-  border: 1px solid #000;
-  padding: 6px;
-  text-align: center;
 }
 
 @media print {
@@ -71,46 +57,16 @@ th, td {
 
 <h1>Controle de Ponto</h1>
 
-<!-- NOME DO FUNCIONÁRIO -->
-<input 
-  id="nomeFuncionario" 
-  value="EDENILSON DE SOUZA PEREIRA"
-  placeholder="Nome do funcionário">
+<p><strong>Funcionário:</strong></p>
+<p>EDENILSON DE SOUZA PEREIRA</p>
 
 <p id="statusAtual">Status: Fora</p>
 
 <button class="entrar" onclick="registrarEntrada()">ENTRAR</button>
 <button class="sair" onclick="registrarSaida()">SAIR</button>
-<button class="sync" onclick="sincronizar()">SINCRONIZAR</button>
 
-<select id="tipoRelatorio">
-  <option value="diario">Relatório Diário</option>
-  <option value="semanal">Relatório Semanal</option>
-  <option value="mensal">Relatório Mensal</option>
-  <option value="anual">Relatório Anual</option>
-</select>
-
-<button class="rel" onclick="gerarRelatorio()">RELATÓRIO / PDF</button>
-
-<div id="aviso" class="aviso"></div>
-
-<div id="relatorio">
-  <h2 id="tituloRel"></h2>
-  <h3 id="nomeRelatorio"></h3>
-
-  <table>
-    <thead>
-      <tr>
-        <th>Data</th>
-        <th>Períodos Trabalhados</th>
-        <th>Total do Dia (h)</th>
-      </tr>
-    </thead>
-    <tbody id="dadosRel"></tbody>
-  </table>
-
-  <h3>Total Geral: <span id="totalHoras"></span> horas</h3>
-  <button onclick="window.print()">IMPRIMIR / SALVAR PDF</button>
+<div id="statusMsg" class="status info">
+Pronto para registrar
 </div>
 
 <script>
@@ -118,137 +74,95 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js');
 }
 
-function mostrarAviso(msg, tipo) {
-  const a = document.getElementById("aviso");
-  a.className = "aviso " + tipo;
-  a.innerHTML = msg;
-  a.style.display = "block";
-  setTimeout(() => a.style.display = "none", 4000);
-}
+const NOME_FUNCIONARIO = "EDENILSON DE SOUZA PEREIRA";
+const BACKEND_URL = https://script.google.com/macros/s/AKfycbx1JAngJ386gA0ZElDM3VK8Ox6crqPYfBtrArpgi-EAph_thq_dxNNd9oTz3Cve8QGEGA/exec;
 
 function getEstado() {
   return localStorage.getItem("estado") || "FORA";
 }
+
 function setEstado(e) {
   localStorage.setItem("estado", e);
-  document.getElementById("statusAtual").innerText =
-    "Status: " + (e === "DENTRO" ? "Em serviço" : "Fora");
+  statusAtual.innerText = "Status: " + (e === "DENTRO" ? "Em serviço" : "Fora");
 }
 setEstado(getEstado());
 
 function salvarRegistro(tipo) {
-  const nome = document.getElementById("nomeFuncionario").value.trim();
-  if (!nome) {
-    mostrarAviso("Informe o nome do funcionário", "alerta");
-    throw "Nome vazio";
-  }
-
   let dados = JSON.parse(localStorage.getItem("pontos") || "[]");
+
   dados.push({
-    nome,
+    nome: NOME_FUNCIONARIO,
     tipo,
     dataHora: new Date().toISOString(),
     sincronizado: false
   });
+
   localStorage.setItem("pontos", JSON.stringify(dados));
+}
+
+function mostrar(msg, classe) {
+  statusMsg.className = "status " + classe;
+  statusMsg.innerHTML = msg;
+}
+
+async function tentarSincronizar() {
+
+  if (!navigator.onLine) {
+    mostrar("Salvo offline – aguardando internet", "off");
+    return;
+  }
+
+  let dados = JSON.parse(localStorage.getItem("pontos") || "[]");
+  let pendentes = dados.filter(d => !d.sincronizado);
+
+  if (pendentes.length === 0) {
+    mostrar("Tudo sincronizado", "ok");
+    return;
+  }
+
+  try {
+    const res = await fetch(BACKEND_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(pendentes)
+    });
+
+    if (res.ok) {
+      dados.forEach(d => d.sincronizado = true);
+      localStorage.setItem("pontos", JSON.stringify(dados));
+      mostrar("Registro sincronizado com sucesso", "ok");
+    } else {
+      mostrar("Erro ao sincronizar – salvo offline", "off");
+    }
+
+  } catch {
+    mostrar("Sem conexão – salvo offline", "off");
+  }
 }
 
 function registrarEntrada() {
   if (getEstado() === "DENTRO") {
-    mostrarAviso("Você já está em serviço. Registre a saída.", "alerta");
+    mostrar("Já está em serviço – registre a saída", "alerta");
     return;
   }
   salvarRegistro("ENTRADA");
   setEstado("DENTRO");
-  mostrarAviso("Entrada registrada<br>" + new Date().toLocaleString(), "ok");
+  mostrar("Entrada registrada", "info");
+  tentarSincronizar();
 }
 
 function registrarSaida() {
   if (getEstado() === "FORA") {
-    mostrarAviso("Não é possível sair sem entrar.", "alerta");
+    mostrar("Não é possível sair sem entrar", "alerta");
     return;
   }
   salvarRegistro("SAÍDA");
   setEstado("FORA");
-  mostrarAviso("Saída registrada<br>" + new Date().toLocaleString(), "erro");
+  mostrar("Saída registrada", "info");
+  tentarSincronizar();
 }
 
-function sincronizar() {
-  mostrarAviso("Sincronização configurada no backend", "info");
-}
-
-function gerarRelatorio() {
-
-  const nome = document.getElementById("nomeFuncionario").value.trim();
-  let tipo = document.getElementById("tipoRelatorio").value;
-  let dados = JSON.parse(localStorage.getItem("pontos") || "[]")
-    .filter(d => d.nome === nome);
-
-  let agora = new Date();
-  let inicio = new Date(0);
-
-  if (tipo === "diario") {
-    inicio = new Date(agora.setHours(0,0,0,0));
-    tituloRel.innerText = "Relatório Diário";
-  }
-  if (tipo === "semanal") {
-    inicio = new Date();
-    inicio.setDate(inicio.getDate() - inicio.getDay());
-    inicio.setHours(0,0,0,0);
-    tituloRel.innerText = "Relatório Semanal";
-  }
-  if (tipo === "mensal") {
-    inicio = new Date(agora.getFullYear(), agora.getMonth(), 1);
-    tituloRel.innerText = "Relatório Mensal";
-  }
-  if (tipo === "anual") {
-    inicio = new Date(agora.getFullYear(), 0, 1);
-    tituloRel.innerText = "Relatório Anual";
-  }
-
-  nomeRelatorio.innerText = nome;
-
-  let filtrados = dados
-    .filter(d => new Date(d.dataHora) >= inicio)
-    .sort((a,b) => new Date(a.dataHora) - new Date(b.dataHora));
-
-  let mapa = {};
-  for (let i = 0; i < filtrados.length; i += 2) {
-    let ent = filtrados[i];
-    let sai = filtrados[i + 1];
-    if (!sai) continue;
-    let dia = new Date(ent.dataHora).toLocaleDateString();
-    mapa[dia] = mapa[dia] || [];
-    mapa[dia].push({ entrada: ent.dataHora, saida: sai.dataHora });
-  }
-
-  let tbody = document.getElementById("dadosRel");
-  tbody.innerHTML = "";
-  let totalGeral = 0;
-
-  for (let dia in mapa) {
-    let totalDia = 0;
-    let periodos = mapa[dia].map(p => {
-      let e = new Date(p.entrada);
-      let s = new Date(p.saida);
-      let h = (s - e) / 36e5;
-      totalDia += h;
-      return `${e.toLocaleTimeString()} - ${s.toLocaleTimeString()}`;
-    }).join("<br>");
-
-    totalGeral += totalDia;
-
-    tbody.innerHTML += `
-      <tr>
-        <td>${dia}</td>
-        <td>${periodos}</td>
-        <td>${totalDia.toFixed(2)}</td>
-      </tr>`;
-  }
-
-  totalHoras.innerText = totalGeral.toFixed(2);
-  document.getElementById("relatorio").style.display = "block";
-}
+window.addEventListener("online", tentarSincronizar);
 </script>
 
 </body>
