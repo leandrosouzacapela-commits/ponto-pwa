@@ -9,55 +9,46 @@
 <meta name="theme-color" content="#0f172a">
 
 <style>
-  <script>
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    window.location.reload();
-  });
-}
-</script>
-
 body {
   font-family: Arial, sans-serif;
-  background: #0f172a;
+  background: radial-gradient(circle at top, #111827, #020617);
   color: #fff;
   text-align: center;
-  padding: 20px;
+  padding: 25px;
 }
+
+h1 { margin-bottom: 10px; }
+
+.info {
+  margin: 6px 0;
+  font-size: 15px;
+  opacity: 0.9;
+}
+
 button {
-  width: 90%;
-  padding: 16px;
-  margin: 10px 0;
-  font-size: 18px;
-  border-radius: 8px;
+  width: 100%;
+  padding: 18px;
+  margin: 14px 0;
+  font-size: 20px;
+  border-radius: 10px;
   border: none;
   color: #fff;
 }
+
 .entrar { background: #22c55e; }
 .sair { background: #ef4444; }
-.status {
-  margin-top: 15px;
-  padding: 12px;
-  border-radius: 8px;
+
+.status-box {
+  margin-top: 20px;
+  padding: 14px;
+  border-radius: 10px;
   font-weight: bold;
 }
+
 .ok { background: #16a34a; }
 .off { background: #f59e0b; }
-.info { background: #2563eb; }
+.info-box { background: #2563eb; }
 .alerta { background: #dc2626; }
-
-#relatorio {
-  display: none;
-  background: #fff;
-  color: #000;
-  padding: 20px;
-  margin-top: 20px;
-}
-
-@media print {
-  body * { display: none; }
-  #relatorio, #relatorio * { display: block; }
-}
 </style>
 </head>
 
@@ -65,58 +56,77 @@ button {
 
 <h1>Controle de Ponto</h1>
 
-<p><strong>Funcionário:</strong></p>
-<p>EDENILSON DE SOUZA PEREIRA</p>
+<div class="info"><strong>Funcionário:</strong></div>
+<div class="info">EDENILSON DE SOUZA PEREIRA</div>
 
-<p id="statusAtual">Status: Fora</p>
+<div class="info" id="dataHora"></div>
+<div class="info" id="statusAtual"></div>
+<div class="info" id="ultimaAcao"></div>
 
 <button class="entrar" onclick="registrarEntrada()">ENTRAR</button>
 <button class="sair" onclick="registrarSaida()">SAIR</button>
 
-<div id="statusMsg" class="status info">
+<div id="statusMsg" class="status-box info-box">
 Pronto para registrar
 </div>
 
 <script>
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js');
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    location.reload();
+  });
 }
 
-const NOME_FUNCIONARIO = "EDENILSON DE SOUZA PEREIRA";
+const FUNCIONARIO = "EDENILSON DE SOUZA PEREIRA";
 const BACKEND_URL = https://script.google.com/macros/s/AKfycbx1JAngJ386gA0ZElDM3VK8Ox6crqPYfBtrArpgi-EAph_thq_dxNNd9oTz3Cve8QGEGA/exec;
 
+/* ===== DATA / HORA AO VIVO ===== */
+function atualizarRelogio() {
+  const agora = new Date();
+  dataHora.innerText =
+    "Hoje: " + agora.toLocaleDateString() + " — " + agora.toLocaleTimeString();
+}
+setInterval(atualizarRelogio, 1000);
+atualizarRelogio();
+
+/* ===== ESTADO ===== */
 function getEstado() {
   return localStorage.getItem("estado") || "FORA";
 }
-
 function setEstado(e) {
   localStorage.setItem("estado", e);
   statusAtual.innerText = "Status: " + (e === "DENTRO" ? "Em serviço" : "Fora");
 }
 setEstado(getEstado());
 
+/* ===== UI ===== */
+function mostrar(msg, classe) {
+  statusMsg.className = "status-box " + classe;
+  statusMsg.innerHTML = msg;
+}
+
+/* ===== REGISTRO ===== */
 function salvarRegistro(tipo) {
   let dados = JSON.parse(localStorage.getItem("pontos") || "[]");
 
   dados.push({
-    nome: NOME_FUNCIONARIO,
+    nome: FUNCIONARIO,
     tipo,
     dataHora: new Date().toISOString(),
     sincronizado: false
   });
 
   localStorage.setItem("pontos", JSON.stringify(dados));
+  ultimaAcao.innerText =
+    "Última ação: " + tipo + " às " + new Date().toLocaleTimeString();
 }
 
-function mostrar(msg, classe) {
-  statusMsg.className = "status " + classe;
-  statusMsg.innerHTML = msg;
-}
-
+/* ===== SINCRONIZAÇÃO ===== */
 async function tentarSincronizar() {
 
   if (!navigator.onLine) {
-    mostrar("Salvo offline – aguardando internet", "off");
+    mostrar("🟡 Salvo offline – aguardando internet", "off");
     return;
   }
 
@@ -124,7 +134,7 @@ async function tentarSincronizar() {
   let pendentes = dados.filter(d => !d.sincronizado);
 
   if (pendentes.length === 0) {
-    mostrar("Tudo sincronizado", "ok");
+    mostrar("🟢 Tudo sincronizado", "ok");
     return;
   }
 
@@ -138,35 +148,35 @@ async function tentarSincronizar() {
     if (res.ok) {
       dados.forEach(d => d.sincronizado = true);
       localStorage.setItem("pontos", JSON.stringify(dados));
-      mostrar("Registro sincronizado com sucesso", "ok");
+      mostrar("🟢 Registro sincronizado com sucesso", "ok");
     } else {
-      mostrar("Erro ao sincronizar – salvo offline", "off");
+      mostrar("🟡 Erro ao sincronizar – salvo offline", "off");
     }
-
   } catch {
-    mostrar("Sem conexão – salvo offline", "off");
+    mostrar("🟡 Sem conexão – salvo offline", "off");
   }
 }
 
+/* ===== BOTÕES ===== */
 function registrarEntrada() {
   if (getEstado() === "DENTRO") {
-    mostrar("Já está em serviço – registre a saída", "alerta");
+    mostrar("🔴 Já está em serviço. Registre a saída.", "alerta");
     return;
   }
   salvarRegistro("ENTRADA");
   setEstado("DENTRO");
-  mostrar("Entrada registrada", "info");
+  mostrar("Entrada registrada", "info-box");
   tentarSincronizar();
 }
 
 function registrarSaida() {
   if (getEstado() === "FORA") {
-    mostrar("Não é possível sair sem entrar", "alerta");
+    mostrar("🔴 Não é possível sair sem entrar.", "alerta");
     return;
   }
   salvarRegistro("SAÍDA");
   setEstado("FORA");
-  mostrar("Saída registrada", "info");
+  mostrar("Saída registrada", "info-box");
   tentarSincronizar();
 }
 
