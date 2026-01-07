@@ -9,22 +9,34 @@
 body {
   font-family: Arial, sans-serif;
   background: #111827;
-  color: #fff;
+  color: #ffffff;
   text-align: center;
   padding: 20px;
 }
+
+h1 { margin-bottom: 10px; }
+.info { margin: 6px 0; }
+
 button {
   width: 100%;
-  padding: 16px;
-  margin: 10px 0;
+  padding: 18px;
+  margin: 12px 0;
   font-size: 18px;
   border-radius: 8px;
   border: none;
   color: #fff;
 }
+
 .entrar { background: #22c55e; }
-.sair { background: #ef4444; }
-.status { padding: 10px; margin-top: 10px; border-radius: 6px; }
+.sair   { background: #ef4444; }
+
+.status {
+  margin-top: 15px;
+  padding: 12px;
+  border-radius: 6px;
+  font-weight: bold;
+}
+
 .ok { background: #16a34a; }
 .alerta { background: #dc2626; }
 </style>
@@ -34,6 +46,79 @@ button {
 
 <h1>Controle de Ponto</h1>
 
+<div class="info">Funcionário:</div>
+<div class="info"><strong>EDENILSON DE SOUZA PEREIRA</strong></div>
+
+<div class="info" id="dataHora"></div>
+<div class="info" id="statusAtual"></div>
+
+<button class="entrar" onclick="registrar('ENTRADA')">ENTRAR</button>
+<button class="sair" onclick="registrar('SAIDA')">SAIR</button>
+
+<div id="msg" class="status">Pronto para registrar</div>
+
+<script>
+/* ================= CONFIG ================= */
+const FUNCIONARIO = "EDENILSON DE SOUZA PEREIRA";
+const BACKEND_URL =
+"https://script.google.com/macros/s/AKfycbwfmbM-mhtDYLIPuETanm7yAQP1YLGEQtxbwXaSP2moySshiyYgBJBui1SEb2tVChlGVQ/exec";
+
+/* ================= RELOGIO ================= */
+setInterval(() => {
+  const d = new Date();
+  dataHora.innerText =
+    "Hoje: " + d.toLocaleDateString() + " – " + d.toLocaleTimeString();
+}, 1000);
+
+/* ================= ESTADO ================= */
+function getEstado() {
+  return localStorage.getItem("estado") || "FORA";
+}
+
+function setEstado(e) {
+  localStorage.setItem("estado", e);
+  statusAtual.innerText =
+    "Status: " + (e === "DENTRO" ? "Em serviço" : "Fora");
+}
+
+setEstado(getEstado());
+
+function status(txt, classe) {
+  msg.className = "status " + classe;
+  msg.innerText = txt;
+}
+
+/* ================= REGISTRO ================= */
+function registrar(tipo) {
+
+  if (tipo === "ENTRADA" && getEstado() === "DENTRO") {
+    status("Já está em serviço", "alerta");
+    return;
+  }
+
+  if (tipo === "SAIDA" && getEstado() === "FORA") {
+    status("Não pode sair sem entrar", "alerta");
+    return;
+  }
+
+  const iso = new Date().toISOString();
+
+  const url =
+    BACKEND_URL +
+    "?nome=" + encodeURIComponent(FUNCIONARIO) +
+    "&tipo=" + encodeURIComponent(tipo) +
+    "&iso="  + encodeURIComponent(iso);
+
+  // ENVIO REAL (SEM CORS, SEM POST)
+  fetch(url);
+
+  setEstado(tipo === "ENTRADA" ? "DENTRO" : "FORA");
+  status("✔ Registro enviado", "ok");
+}
+</script>
+
+</body>
+</html>
 <div>Funcionário:</div>
 <div><strong>EDENILSON DE SOUZA PEREIRA</strong></div>
 
