@@ -16,7 +16,7 @@ body {
   text-align: center;
   padding: 20px;
 }
-button, select {
+button, select, input {
   width: 90%;
   padding: 15px;
   margin: 8px 0;
@@ -70,6 +70,13 @@ th, td {
 <body>
 
 <h1>Controle de Ponto</h1>
+
+<!-- NOME DO FUNCIONÁRIO -->
+<input 
+  id="nomeFuncionario" 
+  value="EDENILSON DE SOUZA PEREIRA"
+  placeholder="Nome do funcionário">
+
 <p id="statusAtual">Status: Fora</p>
 
 <button class="entrar" onclick="registrarEntrada()">ENTRAR</button>
@@ -89,13 +96,14 @@ th, td {
 
 <div id="relatorio">
   <h2 id="tituloRel"></h2>
+  <h3 id="nomeRelatorio"></h3>
 
   <table>
     <thead>
       <tr>
         <th>Data</th>
-        <th>Períodos trabalhados</th>
-        <th>Total do dia (h)</th>
+        <th>Períodos Trabalhados</th>
+        <th>Total do Dia (h)</th>
       </tr>
     </thead>
     <tbody id="dadosRel"></tbody>
@@ -129,8 +137,15 @@ function setEstado(e) {
 setEstado(getEstado());
 
 function salvarRegistro(tipo) {
+  const nome = document.getElementById("nomeFuncionario").value.trim();
+  if (!nome) {
+    mostrarAviso("Informe o nome do funcionário", "alerta");
+    throw "Nome vazio";
+  }
+
   let dados = JSON.parse(localStorage.getItem("pontos") || "[]");
   dados.push({
+    nome,
     tipo,
     dataHora: new Date().toISOString(),
     sincronizado: false
@@ -164,8 +179,10 @@ function sincronizar() {
 
 function gerarRelatorio() {
 
+  const nome = document.getElementById("nomeFuncionario").value.trim();
   let tipo = document.getElementById("tipoRelatorio").value;
-  let dados = JSON.parse(localStorage.getItem("pontos") || "[]");
+  let dados = JSON.parse(localStorage.getItem("pontos") || "[]")
+    .filter(d => d.nome === nome);
 
   let agora = new Date();
   let inicio = new Date(0);
@@ -188,6 +205,8 @@ function gerarRelatorio() {
     inicio = new Date(agora.getFullYear(), 0, 1);
     tituloRel.innerText = "Relatório Anual";
   }
+
+  nomeRelatorio.innerText = nome;
 
   let filtrados = dados
     .filter(d => new Date(d.dataHora) >= inicio)
@@ -227,7 +246,7 @@ function gerarRelatorio() {
       </tr>`;
   }
 
-  document.getElementById("totalHoras").innerText = totalGeral.toFixed(2);
+  totalHoras.innerText = totalGeral.toFixed(2);
   document.getElementById("relatorio").style.display = "block";
 }
 </script>
