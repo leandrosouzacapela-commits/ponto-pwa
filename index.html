@@ -94,15 +94,14 @@ th, td {
     <thead>
       <tr>
         <th>Data</th>
-        <th>Entrada</th>
-        <th>Saída</th>
-        <th>Horas</th>
+        <th>Períodos trabalhados</th>
+        <th>Total do dia (h)</th>
       </tr>
     </thead>
     <tbody id="dadosRel"></tbody>
   </table>
 
-  <h3>Total de Horas: <span id="totalHoras"></span></h3>
+  <h3>Total Geral: <span id="totalHoras"></span> horas</h3>
   <button onclick="window.print()">IMPRIMIR / SALVAR PDF</button>
 </div>
 
@@ -122,7 +121,6 @@ function mostrarAviso(msg, tipo) {
 function getEstado() {
   return localStorage.getItem("estado") || "FORA";
 }
-
 function setEstado(e) {
   localStorage.setItem("estado", e);
   document.getElementById("statusAtual").innerText =
@@ -191,38 +189,45 @@ function gerarRelatorio() {
     tituloRel.innerText = "Relatório Anual";
   }
 
-  let filtrados = dados.filter(d => new Date(d.dataHora) >= inicio);
+  let filtrados = dados
+    .filter(d => new Date(d.dataHora) >= inicio)
+    .sort((a,b) => new Date(a.dataHora) - new Date(b.dataHora));
 
   let mapa = {};
-  filtrados.forEach(d => {
-    let dia = new Date(d.dataHora).toLocaleDateString();
-    mapa[dia] = mapa[dia] || {};
-    if (d.tipo === "ENTRADA") mapa[dia].entrada = d.dataHora;
-    if (d.tipo === "SAÍDA") mapa[dia].saida = d.dataHora;
-  });
+  for (let i = 0; i < filtrados.length; i += 2) {
+    let ent = filtrados[i];
+    let sai = filtrados[i + 1];
+    if (!sai) continue;
+    let dia = new Date(ent.dataHora).toLocaleDateString();
+    mapa[dia] = mapa[dia] || [];
+    mapa[dia].push({ entrada: ent.dataHora, saida: sai.dataHora });
+  }
 
   let tbody = document.getElementById("dadosRel");
   tbody.innerHTML = "";
-  let total = 0;
+  let totalGeral = 0;
 
   for (let dia in mapa) {
-    if (mapa[dia].entrada && mapa[dia].saida) {
-      let e = new Date(mapa[dia].entrada);
-      let s = new Date(mapa[dia].saida);
+    let totalDia = 0;
+    let periodos = mapa[dia].map(p => {
+      let e = new Date(p.entrada);
+      let s = new Date(p.saida);
       let h = (s - e) / 36e5;
-      total += h;
+      totalDia += h;
+      return `${e.toLocaleTimeString()} - ${s.toLocaleTimeString()}`;
+    }).join("<br>");
 
-      tbody.innerHTML += `
-        <tr>
-          <td>${dia}</td>
-          <td>${e.toLocaleTimeString()}</td>
-          <td>${s.toLocaleTimeString()}</td>
-          <td>${h.toFixed(2)}</td>
-        </tr>`;
-    }
+    totalGeral += totalDia;
+
+    tbody.innerHTML += `
+      <tr>
+        <td>${dia}</td>
+        <td>${periodos}</td>
+        <td>${totalDia.toFixed(2)}</td>
+      </tr>`;
   }
 
-  totalHoras.innerText = total.toFixed(2);
+  document.getElementById("totalHoras").innerText = totalGeral.toFixed(2);
   document.getElementById("relatorio").style.display = "block";
 }
 </script>
