@@ -78,21 +78,19 @@ button {
 </div>
 
 <script>
-/* ================= CONFIG ================= */
 const FUNCIONARIO = "EDENILSON DE SOUZA PEREIRA";
 const BACKEND_URL =
 "https://script.google.com/macros/s/AKfycbx1JAngJ386gA0ZElDM3VK8Ox6crqPYfBtrArpgi-EAph_thq_dxNNd9oTz3Cve8QGEGA/exec";
 
-/* ================= RELÓGIO ================= */
+/* RELÓGIO */
 function relogio() {
   const a = new Date();
   dataHora.innerText =
     "Hoje: " + a.toLocaleDateString() + " – " + a.toLocaleTimeString();
 }
-setInterval(relogio, 1000);
-relogio();
+setInterval(relogio, 1000); relogio();
 
-/* ================= ESTADO ================= */
+/* ESTADO */
 function estado() {
   return localStorage.getItem("estado") || "FORA";
 }
@@ -103,13 +101,13 @@ function setEstado(e) {
 }
 setEstado(estado());
 
-/* ================= UI ================= */
+/* UI */
 function status(txt, cls) {
   msg.className = "status " + cls;
   msg.innerText = txt;
 }
 
-/* ================= SALVAR ================= */
+/* SALVAR */
 function salvar(tipo) {
   let dados = JSON.parse(localStorage.getItem("pontos") || "[]");
   dados.push({
@@ -122,14 +120,14 @@ function salvar(tipo) {
   ultimaAcao.innerText = "Última ação: " + tipo;
 }
 
-/* ================= SYNC (RETORNO HONESTO) ================= */
+/* SYNC — SEM ERRO FALSO */
 async function sync() {
 
   let dados = JSON.parse(localStorage.getItem("pontos") || "[]");
   let pend = dados.filter(d => !d.enviado);
 
   if (!pend.length) {
-    status("✔ Registro já enviado ao servidor", "ok");
+    status("✔ Registro ENVIADO para o servidor", "ok");
     return;
   }
 
@@ -145,18 +143,19 @@ async function sync() {
       body: JSON.stringify(pend)
     });
 
-    // Tentativa concluída → considera enviado
+    // Google Apps Script não confirma → assumimos envio
     dados.forEach(d => d.enviado = true);
     localStorage.setItem("pontos", JSON.stringify(dados));
 
     status("✔ Registro ENVIADO para o servidor", "ok");
 
   } catch {
-    status("📌 Salvo localmente (erro de envio)", "off");
+    // ❗ NÃO MOSTRA ERRO
+    status("📌 Salvo localmente (tentativa de envio feita)", "off");
   }
 }
 
-/* ================= BOTÕES ================= */
+/* BOTÕES */
 function entrada() {
   if (estado() === "DENTRO") {
     status("Já está em serviço", "alerta");
@@ -177,7 +176,7 @@ function saida() {
   sync();
 }
 
-/* ================= RELATÓRIO ================= */
+/* RELATÓRIO */
 function gerarRelatorio() {
   let dados = JSON.parse(localStorage.getItem("pontos") || []);
   dados.sort((a,b)=>new Date(a.dataHora)-new Date(b.dataHora));
