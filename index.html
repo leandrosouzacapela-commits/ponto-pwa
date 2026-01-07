@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ponto Offline</title>
+
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0f172a">
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #0f172a;
+      color: #fff;
+      text-align: center;
+      padding: 20px;
+    }
+    h1 { margin-bottom: 5px; }
+    input {
+      width: 90%;
+      padding: 12px;
+      font-size: 16px;
+      margin: 10px 0;
+    }
+    button {
+      width: 90%;
+      padding: 15px;
+      margin: 10px 0;
+      font-size: 18px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .entrar { background: #22c55e; }
+    .sair { background: #ef4444; }
+    .sync { background: #3b82f6; }
+    .box {
+      background: #1e293b;
+      padding: 15px;
+      border-radius: 8px;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Controle de Ponto</h1>
+<p>Offline</p>
+
+<input id="funcionario" placeholder="Nome do funcionário">
+
+<button class="entrar" onclick="registrar('ENTRADA')">ENTRAR</button>
+<button class="sair" onclick="registrar('SAÍDA')">SAIR</button>
+<button class="sync" onclick="sincronizar()">SINCRONIZAR</button>
+
+<div class="box" id="status">
+  Nenhum registro
+</div>
+
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js');
+}
+
+function registrar(tipo) {
+  const nome = document.getElementById("funcionario").value;
+  if (!nome) {
+    alert("Informe o nome");
+    return;
+  }
+
+  const registro = {
+    funcionario: nome,
+    tipo: tipo,
+    dataHora: new Date().toISOString(),
+    sincronizado: false
+  };
+
+  let dados = JSON.parse(localStorage.getItem("pontos") || "[]");
+  dados.push(registro);
+  localStorage.setItem("pontos", JSON.stringify(dados));
+
+  document.getElementById("status").innerHTML =
+    `${tipo} registrada<br>${new Date().toLocaleString()}`;
+}
+
+async function sincronizar() {
+
+  if (!navigator.onLine) {
+    alert("Sem internet. Será sincronizado depois.");
+    return;
+  }
+
+  let dados = JSON.parse(localStorage.getItem("pontos") || "[]");
+  let pendentes = dados.filter(d => !d.sincronizado);
+
+  if (pendentes.length === 0) {
+    alert("Nada para sincronizar");
+    return;
+  }
+
+  alert("Sincronização simulada (backend entra no próximo passo)");
+}
+</script>
+
+</body>
+</html>
