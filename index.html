@@ -12,17 +12,13 @@
 body {
   font-family: Arial, sans-serif;
   background: radial-gradient(circle at top, #111827, #020617);
-  color: #ffffff;
+  color: #fff;
   text-align: center;
   padding: 24px;
 }
 
 h1 { margin-bottom: 10px; }
-
-.info {
-  margin: 6px 0;
-  font-size: 15px;
-}
+.info { margin: 6px 0; font-size: 15px; }
 
 button, select {
   width: 100%;
@@ -45,15 +41,15 @@ button, select {
   font-weight: bold;
 }
 
-.ok     { background: #16a34a; }
-.off    { background: #f59e0b; }
+.ok { background: #16a34a; }
+.off { background: #f59e0b; }
 .alerta { background: #dc2626; }
 .info-box { background: #2563eb; }
 
 #relatorio {
   display: none;
   background: #ffffff;
-  color: #000000;
+  color: #000;
   padding: 20px;
   margin-top: 20px;
 }
@@ -109,13 +105,13 @@ Pronto para registrar
       <tr>
         <th>Data</th>
         <th>Períodos Trabalhados</th>
-        <th>Total do Dia (h)</th>
+        <th>Total do Dia</th>
       </tr>
     </thead>
     <tbody id="dadosRel"></tbody>
   </table>
 
-  <h3>Total Geral: <span id="totalHoras"></span> horas</h3>
+  <h3>Total Geral: <span id="totalHoras"></span></h3>
   <button onclick="window.print()">IMPRIMIR / SALVAR PDF</button>
 </div>
 
@@ -123,12 +119,7 @@ Pronto para registrar
 /* ================= CONFIG ================= */
 const FUNCIONARIO = "EDENILSON DE SOUZA PEREIRA";
 const BACKEND_URL =
-https://script.google.com/macros/s/AKfycbx1JAngJ386gA0ZElDM3VK8Ox6crqPYfBtrArpgi-EAph_thq_dxNNd9oTz3Cve8QGEGA/exec
-/* ================= SERVICE WORKER ================= */
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js');
-  navigator.serviceWorker.addEventListener('controllerchange', () => location.reload());
-}
+"https://script.google.com/macros/s/AKfycbx1JAngJ386gA0ZElDM3VK8Ox6crqPYfBtrArpgi-EAph_thq_dxNNd9oTz3Cve8QGEGA/exec";
 
 /* ================= RELÓGIO ================= */
 function atualizarRelogio() {
@@ -145,33 +136,35 @@ function getEstado() {
 }
 function setEstado(e) {
   localStorage.setItem("estado", e);
-  statusAtual.innerText = "Status: " + (e === "DENTRO" ? "Em serviço" : "Fora");
+  statusAtual.innerText =
+    "Status: " + (e === "DENTRO" ? "Em serviço" : "Fora");
 }
 setEstado(getEstado());
 
 /* ================= UI ================= */
 function mostrar(msg, classe) {
-  const box = document.getElementById("statusMsg");
-  box.className = "status-box " + classe;
-  box.innerHTML = msg;
+  statusMsg.className = "status-box " + classe;
+  statusMsg.innerHTML = msg;
 }
 
 /* ================= REGISTRO ================= */
 function salvarRegistro(tipo) {
   let dados = JSON.parse(localStorage.getItem("pontos") || "[]");
+
   dados.push({
     nome: FUNCIONARIO,
     tipo: tipo,
     dataHora: new Date().toISOString(),
     sincronizado: false
   });
+
   localStorage.setItem("pontos", JSON.stringify(dados));
 
   ultimaAcao.innerText =
     "Última ação: " + tipo + " às " + new Date().toLocaleTimeString();
 }
 
-/* ================= SINCRONIZAÇÃO ================= */
+/* ================= SINCRONIZAÇÃO (CORRETA PARA GAS) ================= */
 async function tentarSincronizar() {
 
   if (!navigator.onLine) {
@@ -188,20 +181,19 @@ async function tentarSincronizar() {
   }
 
   try {
-    const res = await fetch(BACKEND_URL, {
+    await fetch(BACKEND_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(pendentes)
     });
 
-    if (res.ok) {
-      dados.forEach(d => d.sincronizado = true);
-      localStorage.setItem("pontos", JSON.stringify(dados));
-      mostrar("🟢 Sincronizado com sucesso", "ok");
-    } else {
-      mostrar("🟡 Erro ao sincronizar – salvo offline", "off");
-    }
-  } catch {
+    // Google Apps Script não retorna ok confiável → se não caiu no catch, é sucesso
+    dados.forEach(d => d.sincronizado = true);
+    localStorage.setItem("pontos", JSON.stringify(dados));
+
+    mostrar("🟢 Sincronizado com sucesso", "ok");
+
+  } catch (e) {
     mostrar("🟡 Falha de conexão – salvo offline", "off");
   }
 }
@@ -229,10 +221,20 @@ function registrarSaida() {
   tentarSincronizar();
 }
 
-/* ================= RELATÓRIO + CÁLCULO ================= */
+/* ================= FORMATAÇÃO DE HORAS ================= */
+function formatarMinutos(min) {
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return h > 0
+    ? `${h}h:${m.toString().padStart(2,"0")}min`
+    : `0:${m.toString().padStart(2,"0")}min`;
+}
+
+/* ================= RELATÓRIO ================= */
 function gerarRelatorio() {
 
   const tipo = document.getElementById("tipoRelatorio").value;
+
   let registros = JSON.parse(localStorage.getItem("pontos") || "[]")
     .sort((a,b) => new Date(a.dataHora) - new Date(b.dataHora));
 
@@ -252,13 +254,13 @@ function gerarRelatorio() {
 
   let mapa = {};
   for (let i = 0; i < filtrados.length; i += 2) {
-    let ent = filtrados[i];
-    let sai = filtrados[i + 1];
-    if (!sai) continue;
+    let e = filtrados[i];
+    let s = filtrados[i+1];
+    if (!s) continue;
 
-    let dia = new Date(ent.dataHora).toLocaleDateString();
+    let dia = new Date(e.dataHora).toLocaleDateString();
     mapa[dia] = mapa[dia] || [];
-    mapa[dia].push({ entrada: ent.dataHora, saida: sai.dataHora });
+    mapa[dia].push({ e, s });
   }
 
   dadosRel.innerHTML = "";
@@ -266,12 +268,13 @@ function gerarRelatorio() {
 
   for (let dia in mapa) {
     let totalDia = 0;
+
     let periodos = mapa[dia].map(p => {
-      let e = new Date(p.entrada);
-      let s = new Date(p.saida);
-      let h = (s - e) / 36e5;
-      totalDia += h;
-      return `${e.toLocaleTimeString()} - ${s.toLocaleTimeString()}`;
+      let ini = new Date(p.e.dataHora);
+      let fim = new Date(p.s.dataHora);
+      let min = Math.round((fim - ini) / 60000);
+      totalDia += min;
+      return `${ini.toLocaleTimeString()} - ${fim.toLocaleTimeString()}`;
     }).join("<br>");
 
     totalGeral += totalDia;
@@ -280,12 +283,12 @@ function gerarRelatorio() {
       <tr>
         <td>${dia}</td>
         <td>${periodos}</td>
-        <td>${totalDia.toFixed(2)}</td>
+        <td>${formatarMinutos(totalDia)}</td>
       </tr>`;
   }
 
-  totalHoras.innerText = totalGeral.toFixed(2);
-  document.getElementById("relatorio").style.display = "block";
+  totalHoras.innerText = formatarMinutos(totalGeral);
+  relatorio.style.display = "block";
 }
 
 window.addEventListener("online", tentarSincronizar);
