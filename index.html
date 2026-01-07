@@ -13,10 +13,8 @@ body {
   text-align: center;
   padding: 20px;
 }
-
 h1 { margin-bottom: 10px; }
 .info { margin: 5px 0; }
-
 button {
   width: 100%;
   padding: 16px;
@@ -26,29 +24,17 @@ button {
   border: none;
   color: #fff;
 }
-
 .entrar { background: #22c55e; }
-.sair   { background: #ef4444; }
-.rel    { background: #2563eb; }
-
+.sair { background: #ef4444; }
 .status {
   margin-top: 15px;
   padding: 10px;
   border-radius: 6px;
   font-weight: bold;
 }
-
 .ok { background: #16a34a; }
 .off { background: #f59e0b; }
 .alerta { background: #dc2626; }
-
-#relatorio {
-  display: none;
-  background: #ffffff;
-  color: #000;
-  padding: 15px;
-  margin-top: 20px;
-}
 </style>
 </head>
 
@@ -61,146 +47,85 @@ button {
 
 <div class="info" id="dataHora"></div>
 <div class="info" id="statusAtual"></div>
-<div class="info" id="ultimaAcao"></div>
 
-<button class="entrar" onclick="registrarEntrada()">ENTRAR</button>
-<button class="sair" onclick="registrarSaida()">SAIR</button>
+<button class="entrar" onclick="entrada()">ENTRAR</button>
+<button class="sair" onclick="saida()">SAIR</button>
 
 <div id="msg" class="status off">Pronto para registrar</div>
 
-<button class="rel" onclick="gerarRelatorio()">RELATÓRIO / PDF</button>
-
-<div id="relatorio">
-  <h3>Relatório de Horas</h3>
-  <div id="conteudoRel"></div>
-  <br>
-  <button onclick="window.print()">IMPRIMIR / PDF</button>
-</div>
-
 <script>
-/* ================= CONFIG ================= */
 const FUNCIONARIO = "EDENILSON DE SOUZA PEREIRA";
 const BACKEND_URL =
 "https://script.google.com/macros/s/AKfycbwfmbM-mhtDYLIPuETanm7yAQP1YLGEQtxbwXaSP2moySshiyYgBJBui1SEb2tVChlGVQ/exec";
 
-/* ================= RELÓGIO ================= */
-function atualizarRelogio() {
-  const a = new Date();
+/* Relógio */
+setInterval(() => {
+  const d = new Date();
   dataHora.innerText =
-    "Hoje: " + a.toLocaleDateString() + " – " + a.toLocaleTimeString();
-}
-setInterval(atualizarRelogio, 1000);
-atualizarRelogio();
+    "Hoje: " + d.toLocaleDateString() + " – " + d.toLocaleTimeString();
+}, 1000);
 
-/* ================= ESTADO ================= */
+/* Estado */
 function getEstado() {
   return localStorage.getItem("estado") || "FORA";
 }
 function setEstado(e) {
   localStorage.setItem("estado", e);
-  statusAtual.innerText =
-    "Status: " + (e === "DENTRO" ? "Em serviço" : "Fora");
+  statusAtual.innerText = "Status: " + (e === "DENTRO" ? "Em serviço" : "Fora");
 }
 setEstado(getEstado());
 
-/* ================= UI ================= */
-function status(msgTexto, classe) {
-  msg.className = "status " + classe;
-  msg.innerText = msgTexto;
+function status(txt, cls) {
+  msg.className = "status " + cls;
+  msg.innerText = txt;
 }
 
-/* ================= SALVAR LOCAL ================= */
-function salvarLocal(tipo) {
+function salvar(tipo) {
   let dados = JSON.parse(localStorage.getItem("pontos") || "[]");
-
   dados.push({
     nome: FUNCIONARIO,
-    tipo: tipo,
-    dataHora: new Date().toISOString(),
-    enviado: false
+    tipo,
+    dataHora: new Date().toISOString()
   });
-
   localStorage.setItem("pontos", JSON.stringify(dados));
-  ultimaAcao.innerText =
-    "Última ação: " + tipo + " às " + new Date().toLocaleTimeString();
 }
 
-/* ================= ENVIAR PARA PLANILHA ================= */
-function sincronizar() {
-
-  let dados = JSON.parse(localStorage.getItem("pontos") || "[]");
-  let pendentes = dados.filter(d => !d.enviado);
-
-  if (!pendentes.length) {
-    status("✔ Registro enviado", "ok");
-    return;
-  }
-
+function enviar() {
   if (!navigator.onLine) {
     status("📌 Salvo localmente (sem internet)", "off");
     return;
   }
 
+  let dados = JSON.parse(localStorage.getItem("pontos") || "[]");
+
   fetch(BACKEND_URL, {
-  method: "POST",
-  mode: "no-cors",
-  body: JSON.stringify(pendentes)
-});
+    method: "POST",
+    mode: "no-cors",
+    body: JSON.stringify(dados)
+  });
 
-  // Marca como enviado (Apps Script não confirma, mas grava)
-  dados.forEach(d => d.enviado = true);
-  localStorage.setItem("pontos", JSON.stringify(dados));
-
-  status("✔ Registro enviado", "ok");
+  status("✔ Registro enviado para a planilha", "ok");
 }
 
-/* ================= BOTÕES ================= */
-function registrarEntrada() {
+function entrada() {
   if (getEstado() === "DENTRO") {
     status("Já está em serviço", "alerta");
     return;
   }
-  salvarLocal("ENTRADA");
+  salvar("ENTRADA");
   setEstado("DENTRO");
-  sincronizar();
+  enviar();
 }
 
-function registrarSaida() {
+function saida() {
   if (getEstado() === "FORA") {
     status("Não pode sair sem entrar", "alerta");
     return;
   }
-  salvarLocal("SAÍDA");
+  salvar("SAÍDA");
   setEstado("FORA");
-  sincronizar();
+  enviar();
 }
-
-/* ================= RELATÓRIO ================= */
-function gerarRelatorio() {
-  let dados = JSON.parse(localStorage.getItem("pontos") || []);
-  dados.sort((a,b)=>new Date(a.dataHora)-new Date(b.dataHora));
-
-  let totalMin = 0;
-  let html = "";
-
-  for (let i = 0; i < dados.length; i += 2) {
-    if (!dados[i+1]) break;
-    let e = new Date(dados[i].dataHora);
-    let s = new Date(dados[i+1].dataHora);
-    let min = Math.round((s - e) / 60000);
-    totalMin += min;
-    html += `${e.toLocaleDateString()} — ${e.toLocaleTimeString()} / ${s.toLocaleTimeString()}<br>`;
-  }
-
-  let h = Math.floor(totalMin / 60);
-  let m = totalMin % 60;
-  html += `<br><strong>Total: ${h}h:${m.toString().padStart(2,"0")}min</strong>`;
-
-  conteudoRel.innerHTML = html;
-  relatorio.style.display = "block";
-}
-
-window.addEventListener("online", sincronizar);
 </script>
 
 </body>
