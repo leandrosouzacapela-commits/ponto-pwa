@@ -61,32 +61,26 @@ button {
 #relatorio {
   display: none;
   background: #ffffff;
-  color: #000000;              /* 🔑 TEXTO PRETO */
+  color: #000000;
   padding: 25px;
   margin-top: 20px;
   text-align: left;
 }
 
-#relatorio * {
-  color: #000000 !important;   /* 🔑 GARANTE PRETO */
-}
-
 #relatorio h2 {
   text-align: center;
   font-size: 20px;
-  margin-bottom: 6px;
 }
 
 #relatorio h3 {
   text-align: center;
-  margin: 0;
   font-size: 18px;
 }
 
 #periodoRelatorio {
   text-align: center;
   font-weight: bold;
-  margin: 8px 0 16px 0;
+  margin: 10px 0;
 }
 
 #boxTotalHoras {
@@ -99,29 +93,26 @@ button {
   margin-bottom: 20px;
 }
 
-/* ================= IMPRESSÃO ================= */
+/* ===== IMPRESSÃO CORRIGIDA ===== */
 @media print {
+
   body {
-    background: #ffffff;
-    color: #000000;
+    background: #ffffff !important;
+    color: #000000 !important;
   }
 
-  body * {
-    visibility: hidden;
-  }
-
-  #relatorio,
-  #relatorio * {
-    visibility: visible;
+  .container > *:not(#relatorio) {
+    display: none !important;
   }
 
   #relatorio {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    margin: 0;
-    padding: 20px;
+    display: block !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  #relatorio * {
+    color: #000000 !important;
   }
 }
 </style>
@@ -135,21 +126,10 @@ button {
 
   <div class="info"><strong>Funcionário:</strong></div>
   <div class="info">
-    <input
-      id="nomeFuncionario"
+    <input id="nomeFuncionario"
       value="EDENILSON DE SOUZA PEREIRA"
       onblur="salvarNome()"
-      style="
-        background: transparent;
-        border: none;
-        color: #ffffff;
-        font-size: 18px;
-        font-weight: bold;
-        text-align: center;
-        width: 100%;
-        outline: none;
-      "
-    >
+      style="background:transparent;border:none;color:#fff;font-size:18px;font-weight:bold;text-align:center;width:100%;outline:none;">
   </div>
 
   <div class="info" id="dataHora"></div>
@@ -168,15 +148,7 @@ button {
     <h3 id="tituloFuncionario"></h3>
     <div id="periodoRelatorio"></div>
 
-    <div style="text-align:center; margin-bottom:12px;">
-      <button onclick="gerarRelatorio('DIA')">Diário</button>
-      <button onclick="gerarRelatorio('SEMANA')">Semanal</button>
-      <button onclick="gerarRelatorio('MES')">Mensal</button>
-      <button onclick="gerarRelatorio('ANO')">Anual</button>
-    </div>
-
     <div id="boxTotalHoras">TOTAL: 00h:00min</div>
-
     <div id="conteudoRel"></div>
 
     <br>
@@ -186,105 +158,57 @@ button {
 </div>
 
 <script>
-/* ===== RELÓGIO ===== */
-setInterval(() => {
-  const d = new Date();
-  dataHora.innerText =
-    "Hoje: " + d.toLocaleDateString() + " — " + d.toLocaleTimeString();
-}, 1000);
+setInterval(()=> {
+  const d=new Date();
+  dataHora.innerText="Hoje: "+d.toLocaleDateString()+" — "+d.toLocaleTimeString();
+},1000);
 
-/* ===== NOME ===== */
-function salvarNome() {
-  const nome = nomeFuncionario.value.trim();
-  if (nome) localStorage.setItem("nomeFuncionario", nome);
+function salvarNome(){
+  localStorage.setItem("nomeFuncionario",nomeFuncionario.value);
 }
-(function(){
-  const salvo = localStorage.getItem("nomeFuncionario");
-  if (salvo) nomeFuncionario.value = salvo;
-})();
+if(localStorage.getItem("nomeFuncionario"))
+  nomeFuncionario.value=localStorage.getItem("nomeFuncionario");
 
-/* ===== ESTADO ===== */
-function getEstado() {
-  return localStorage.getItem("estado") || "FORA";
-}
-function setEstado(e) {
-  localStorage.setItem("estado", e);
-  statusAtual.innerText =
-    "Status: " + (e === "DENTRO" ? "Em serviço" : "Fora");
+function getEstado(){return localStorage.getItem("estado")||"FORA";}
+function setEstado(e){
+  localStorage.setItem("estado",e);
+  statusAtual.innerText="Status: "+(e==="DENTRO"?"Em serviço":"Fora");
 }
 setEstado(getEstado());
 
-/* ===== REGISTRO ===== */
-function registrar(tipo) {
-  if (tipo === "ENTRADA" && getEstado() === "DENTRO") return;
-  if (tipo === "SAIDA" && getEstado() === "FORA") return;
-
-  const agora = new Date();
-  const dados = JSON.parse(localStorage.getItem("pontos") || "[]");
-  dados.push({ tipo, iso: agora.toISOString() });
-  localStorage.setItem("pontos", JSON.stringify(dados));
-
-  setEstado(tipo === "ENTRADA" ? "DENTRO" : "FORA");
-  ultimaAcao.innerText =
-    "Última ação: " + tipo + " às " + agora.toLocaleTimeString();
+function registrar(tipo){
+  if(tipo==="ENTRADA"&&getEstado()==="DENTRO")return;
+  if(tipo==="SAIDA"&&getEstado()==="FORA")return;
+  const agora=new Date();
+  const dados=JSON.parse(localStorage.getItem("pontos")||"[]");
+  dados.push({tipo,iso:agora.toISOString()});
+  localStorage.setItem("pontos",JSON.stringify(dados));
+  setEstado(tipo==="ENTRADA"?"DENTRO":"FORA");
+  ultimaAcao.innerText="Última ação: "+tipo+" às "+agora.toLocaleTimeString();
   statusEnvio.classList.remove("hidden");
 }
 
-/* ===== RELATÓRIO ===== */
-function toggleRelatorio() {
-  relatorio.style.display =
-    relatorio.style.display === "none" ? "block" : "none";
+function toggleRelatorio(){
+  relatorio.style.display=relatorio.style.display==="none"?"block":"none";
 }
 
-function gerarRelatorio(tipo) {
-  const nome = nomeFuncionario.value;
-  tituloFuncionario.innerText = "NOME: " + nome;
-
-  const registros = JSON.parse(localStorage.getItem("pontos") || []);
-  const agora = new Date();
-
-  let totalMin = 0;
-  let linhas = "";
-  let datas = [];
-
-  for (let i = 0; i < registros.length; i += 2) {
-    if (!registros[i+1]) break;
-
-    const e = new Date(registros[i].iso);
-    const s = new Date(registros[i+1].iso);
-
-    if (tipo === "DIA" && e.toDateString() !== agora.toDateString()) continue;
-    if (tipo === "MES" && e.getMonth() !== agora.getMonth()) continue;
-    if (tipo === "ANO" && e.getFullYear() !== agora.getFullYear()) continue;
-
-    const min = Math.round((s - e) / 60000);
-    totalMin += min;
-    datas.push(e);
-
-    linhas += `
-      <div>
-        ${e.toLocaleDateString()} — ${e.toLocaleTimeString()}
-        → ${s.toLocaleTimeString()}
-      </div>
-    `;
+function gerarRelatorio(){
+  const nome=nomeFuncionario.value;
+  tituloFuncionario.innerText="NOME: "+nome;
+  const regs=JSON.parse(localStorage.getItem("pontos")||[]);
+  let total=0,html="";
+  for(let i=0;i<regs.length;i+=2){
+    if(!regs[i+1])break;
+    const e=new Date(regs[i].iso);
+    const s=new Date(regs[i+1].iso);
+    const min=Math.round((s-e)/60000);
+    total+=min;
+    html+=`${e.toLocaleDateString()} — ${e.toLocaleTimeString()} → ${s.toLocaleTimeString()}<br>`;
   }
-
-  let periodo = "—";
-  if (datas.length) {
-    periodo =
-      datas[0].toLocaleDateString() +
-      " a " +
-      datas[datas.length - 1].toLocaleDateString();
-  }
-
-  periodoRelatorio.innerText = "PERÍODO: " + periodo;
-
-  const h = Math.floor(totalMin / 60).toString().padStart(2,"0");
-  const m = (totalMin % 60).toString().padStart(2,"0");
-
-  boxTotalHoras.innerText = "TOTAL DE HORAS: " + h + "h:" + m + "min";
-  conteudoRel.innerHTML =
-    linhas || "<em>Nenhum registro encontrado.</em>";
+  const h=String(Math.floor(total/60)).padStart(2,"0");
+  const m=String(total%60).padStart(2,"0");
+  boxTotalHoras.innerText=`TOTAL DE HORAS: ${h}h:${m}min`;
+  conteudoRel.innerHTML=html||"<em>Nenhum registro.</em>";
 }
 </script>
 
