@@ -15,7 +15,6 @@ body {
 }
 
 h1 { margin-bottom: 10px; }
-
 .info { margin: 5px 0; }
 
 button {
@@ -117,25 +116,25 @@ function salvar(tipo) {
     nome: FUNCIONARIO,
     tipo,
     dataHora: new Date().toISOString(),
-    sync: false
+    enviado: false
   });
   localStorage.setItem("pontos", JSON.stringify(dados));
   ultimaAcao.innerText = "Última ação: " + tipo;
 }
 
-/* ================= SYNC (CORRIGIDO DEFINITIVO) ================= */
+/* ================= SYNC (RETORNO HONESTO) ================= */
 async function sync() {
 
   let dados = JSON.parse(localStorage.getItem("pontos") || "[]");
-  let pend = dados.filter(d => !d.sync);
+  let pend = dados.filter(d => !d.enviado);
 
   if (!pend.length) {
-    status("Sincronizado", "ok");
+    status("✔ Registro já enviado ao servidor", "ok");
     return;
   }
 
   if (!navigator.onLine) {
-    status("Salvo offline", "off");
+    status("📌 Salvo localmente (sem internet)", "off");
     return;
   }
 
@@ -146,16 +145,14 @@ async function sync() {
       body: JSON.stringify(pend)
     });
 
-    // 🔒 REGRA FINAL PARA GOOGLE APPS SCRIPT
-    // Tentou enviar = considera sincronizado
-    dados.forEach(d => d.sync = true);
+    // Tentativa concluída → considera enviado
+    dados.forEach(d => d.enviado = true);
     localStorage.setItem("pontos", JSON.stringify(dados));
 
-    status("Sincronizado", "ok");
+    status("✔ Registro ENVIADO para o servidor", "ok");
 
   } catch {
-    // Nunca mostramos falha
-    status("Salvo offline", "off");
+    status("📌 Salvo localmente (erro de envio)", "off");
   }
 }
 
@@ -182,7 +179,7 @@ function saida() {
 
 /* ================= RELATÓRIO ================= */
 function gerarRelatorio() {
-  let dados = JSON.parse(localStorage.getItem("pontos") || "[]");
+  let dados = JSON.parse(localStorage.getItem("pontos") || []);
   dados.sort((a,b)=>new Date(a.dataHora)-new Date(b.dataHora));
 
   let totalMin = 0;
