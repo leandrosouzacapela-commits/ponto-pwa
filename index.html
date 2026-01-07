@@ -9,12 +9,10 @@
 body {
   font-family: Arial, sans-serif;
   background: #111827;
-  color: #ffffff;
+  color: #fff;
   text-align: center;
   padding: 20px;
 }
-h1 { margin-bottom: 10px; }
-.info { margin: 5px 0; }
 button {
   width: 100%;
   padding: 16px;
@@ -26,14 +24,8 @@ button {
 }
 .entrar { background: #22c55e; }
 .sair { background: #ef4444; }
-.status {
-  margin-top: 15px;
-  padding: 10px;
-  border-radius: 6px;
-  font-weight: bold;
-}
+.status { padding: 10px; margin-top: 10px; border-radius: 6px; }
 .ok { background: #16a34a; }
-.off { background: #f59e0b; }
 .alerta { background: #dc2626; }
 </style>
 </head>
@@ -42,89 +34,36 @@ button {
 
 <h1>Controle de Ponto</h1>
 
-<div class="info"><strong>Funcionário:</strong></div>
-<div class="info">EDENILSON DE SOUZA PEREIRA</div>
+<div>Funcionário:</div>
+<div><strong>EDENILSON DE SOUZA PEREIRA</strong></div>
 
-<div class="info" id="dataHora"></div>
-<div class="info" id="statusAtual"></div>
+<div id="statusAtual"></div>
 
-<button class="entrar" onclick="entrada()">ENTRAR</button>
-<button class="sair" onclick="saida()">SAIR</button>
+<button class="entrar" onclick="registrar('ENTRADA')">ENTRAR</button>
+<button class="sair" onclick="registrar('SAÍDA')">SAIR</button>
 
-<div id="msg" class="status off">Pronto para registrar</div>
+<div id="msg" class="status">Pronto</div>
 
 <script>
 const FUNCIONARIO = "EDENILSON DE SOUZA PEREIRA";
 const BACKEND_URL =
 "https://script.google.com/macros/s/AKfycbwfmbM-mhtDYLIPuETanm7yAQP1YLGEQtxbwXaSP2moySshiyYgBJBui1SEb2tVChlGVQ/exec";
 
-/* Relógio */
-setInterval(() => {
-  const d = new Date();
-  dataHora.innerText =
-    "Hoje: " + d.toLocaleDateString() + " – " + d.toLocaleTimeString();
-}, 1000);
+function registrar(tipo) {
 
-/* Estado */
-function getEstado() {
-  return localStorage.getItem("estado") || "FORA";
-}
-function setEstado(e) {
-  localStorage.setItem("estado", e);
-  statusAtual.innerText = "Status: " + (e === "DENTRO" ? "Em serviço" : "Fora");
-}
-setEstado(getEstado());
+  const iso = new Date().toISOString();
 
-function status(txt, cls) {
-  msg.className = "status " + cls;
-  msg.innerText = txt;
-}
+  const url =
+    BACKEND_URL +
+    "?nome=" + encodeURIComponent(FUNCIONARIO) +
+    "&tipo=" + encodeURIComponent(tipo) +
+    "&iso="  + encodeURIComponent(iso);
 
-function salvar(tipo) {
-  let dados = JSON.parse(localStorage.getItem("pontos") || "[]");
-  dados.push({
-    nome: FUNCIONARIO,
-    tipo,
-    dataHora: new Date().toISOString()
-  });
-  localStorage.setItem("pontos", JSON.stringify(dados));
-}
+  fetch(url);
 
-function enviar() {
-  if (!navigator.onLine) {
-    status("📌 Salvo localmente (sem internet)", "off");
-    return;
-  }
+  msg.className = "status ok";
+  msg.innerText = "✔ Registro enviado";
 
-  let dados = JSON.parse(localStorage.getItem("pontos") || "[]");
-
-  fetch(BACKEND_URL, {
-    method: "POST",
-    mode: "no-cors",
-    body: JSON.stringify(dados)
-  });
-
-  status("✔ Registro enviado para a planilha", "ok");
-}
-
-function entrada() {
-  if (getEstado() === "DENTRO") {
-    status("Já está em serviço", "alerta");
-    return;
-  }
-  salvar("ENTRADA");
-  setEstado("DENTRO");
-  enviar();
-}
-
-function saida() {
-  if (getEstado() === "FORA") {
-    status("Não pode sair sem entrar", "alerta");
-    return;
-  }
-  salvar("SAÍDA");
-  setEstado("FORA");
-  enviar();
 }
 </script>
 
