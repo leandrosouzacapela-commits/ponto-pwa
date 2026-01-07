@@ -12,16 +12,21 @@
 body {
   font-family: Arial, sans-serif;
   background: radial-gradient(circle at top, #111827, #020617);
-  color: #fff;
+  color: #ffffff;
   text-align: center;
   padding: 24px;
 }
+
 h1 { margin-bottom: 10px; }
-.info { margin: 6px 0; font-size: 15px; }
+
+.info {
+  margin: 6px 0;
+  font-size: 15px;
+}
 
 button, select {
   width: 100%;
-  padding: 16px;
+  padding: 18px;
   margin: 12px 0;
   font-size: 18px;
   border-radius: 10px;
@@ -30,8 +35,8 @@ button, select {
 }
 
 .entrar { background: #22c55e; }
-.sair { background: #ef4444; }
-.rel { background: #f59e0b; }
+.sair   { background: #ef4444; }
+.rel    { background: #f59e0b; }
 
 .status-box {
   margin-top: 14px;
@@ -40,15 +45,15 @@ button, select {
   font-weight: bold;
 }
 
-.ok { background: #16a34a; }
-.off { background: #f59e0b; }
+.ok     { background: #16a34a; }
+.off    { background: #f59e0b; }
 .alerta { background: #dc2626; }
 .info-box { background: #2563eb; }
 
 #relatorio {
   display: none;
-  background: #fff;
-  color: #000;
+  background: #ffffff;
+  color: #000000;
   padding: 20px;
   margin-top: 20px;
 }
@@ -117,7 +122,8 @@ Pronto para registrar
 <script>
 /* ================= CONFIG ================= */
 const FUNCIONARIO = "EDENILSON DE SOUZA PEREIRA";
-const BACKEND_URL = "https://script.google.com/macros/s/AKfycbx1JAngJ386gA0ZElDM3VK8Ox6crqPYfBtrArpgi-EAph_thq_dxNNd9oTz3Cve8QGEGA/exec";
+const BACKEND_URL =
+"https://script.google.com/macros/s/AKfycbx1JAngJ386gA0ZElDM3VK8Ox6crqPYfBtrArpgi-EAph_thq_dxNNd9oTz3Cve8QGEGA/exec";
 
 /* ================= SERVICE WORKER ================= */
 if ('serviceWorker' in navigator) {
@@ -146,8 +152,9 @@ setEstado(getEstado());
 
 /* ================= UI ================= */
 function mostrar(msg, classe) {
-  statusMsg.className = "status-box " + classe;
-  statusMsg.innerHTML = msg;
+  const box = document.getElementById("statusMsg");
+  box.className = "status-box " + classe;
+  box.innerHTML = msg;
 }
 
 /* ================= REGISTRO ================= */
@@ -155,16 +162,19 @@ function salvarRegistro(tipo) {
   let dados = JSON.parse(localStorage.getItem("pontos") || "[]");
   dados.push({
     nome: FUNCIONARIO,
-    tipo,
+    tipo: tipo,
     dataHora: new Date().toISOString(),
     sincronizado: false
   });
   localStorage.setItem("pontos", JSON.stringify(dados));
-  ultimaAcao.innerText = "Última ação: " + tipo + " às " + new Date().toLocaleTimeString();
+
+  ultimaAcao.innerText =
+    "Última ação: " + tipo + " às " + new Date().toLocaleTimeString();
 }
 
-/* ================= SINCRONIZA ================= */
+/* ================= SINCRONIZAÇÃO ================= */
 async function tentarSincronizar() {
+
   if (!navigator.onLine) {
     mostrar("🟡 Salvo offline – aguardando internet", "off");
     return;
@@ -189,6 +199,8 @@ async function tentarSincronizar() {
       dados.forEach(d => d.sincronizado = true);
       localStorage.setItem("pontos", JSON.stringify(dados));
       mostrar("🟢 Sincronizado com sucesso", "ok");
+    } else {
+      mostrar("🟡 Erro ao sincronizar – salvo offline", "off");
     }
   } catch {
     mostrar("🟡 Falha de conexão – salvo offline", "off");
@@ -198,7 +210,7 @@ async function tentarSincronizar() {
 /* ================= BOTÕES ================= */
 function registrarEntrada() {
   if (getEstado() === "DENTRO") {
-    mostrar("🔴 Já está em serviço", "alerta");
+    mostrar("🔴 Já está em serviço. Registre a saída.", "alerta");
     return;
   }
   salvarRegistro("ENTRADA");
@@ -209,7 +221,7 @@ function registrarEntrada() {
 
 function registrarSaida() {
   if (getEstado() === "FORA") {
-    mostrar("🔴 Não é possível sair sem entrar", "alerta");
+    mostrar("🔴 Não é possível sair sem entrar.", "alerta");
     return;
   }
   salvarRegistro("SAÍDA");
@@ -218,13 +230,12 @@ function registrarSaida() {
   tentarSincronizar();
 }
 
-/* ================= RELATÓRIO COM CÁLCULO ================= */
+/* ================= RELATÓRIO + CÁLCULO ================= */
 function gerarRelatorio() {
 
   const tipo = document.getElementById("tipoRelatorio").value;
-  let registros = JSON.parse(localStorage.getItem("pontos") || "[]");
-
-  registros = registros.sort((a,b) => new Date(a.dataHora) - new Date(b.dataHora));
+  let registros = JSON.parse(localStorage.getItem("pontos") || "[]")
+    .sort((a,b) => new Date(a.dataHora) - new Date(b.dataHora));
 
   let hoje = new Date();
   let inicio;
@@ -242,11 +253,11 @@ function gerarRelatorio() {
 
   let mapa = {};
   for (let i = 0; i < filtrados.length; i += 2) {
-    const ent = filtrados[i];
-    const sai = filtrados[i + 1];
+    let ent = filtrados[i];
+    let sai = filtrados[i + 1];
     if (!sai) continue;
 
-    const dia = new Date(ent.dataHora).toLocaleDateString();
+    let dia = new Date(ent.dataHora).toLocaleDateString();
     mapa[dia] = mapa[dia] || [];
     mapa[dia].push({ entrada: ent.dataHora, saida: sai.dataHora });
   }
@@ -257,9 +268,9 @@ function gerarRelatorio() {
   for (let dia in mapa) {
     let totalDia = 0;
     let periodos = mapa[dia].map(p => {
-      const e = new Date(p.entrada);
-      const s = new Date(p.saida);
-      const h = (s - e) / 36e5;
+      let e = new Date(p.entrada);
+      let s = new Date(p.saida);
+      let h = (s - e) / 36e5;
       totalDia += h;
       return `${e.toLocaleTimeString()} - ${s.toLocaleTimeString()}`;
     }).join("<br>");
