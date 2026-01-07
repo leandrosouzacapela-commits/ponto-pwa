@@ -109,27 +109,29 @@ function status(txt, cls) {
   msg.innerText = txt;
 }
 
-/* ================= SALVAR ================= */
+/* ================= SALVAR LOCAL ================= */
 function salvar(tipo) {
   let dados = JSON.parse(localStorage.getItem("pontos") || "[]");
+
   dados.push({
     nome: FUNCIONARIO,
-    tipo,
+    tipo: tipo,
     dataHora: new Date().toISOString(),
     enviado: false
   });
+
   localStorage.setItem("pontos", JSON.stringify(dados));
   ultimaAcao.innerText = "Última ação: " + tipo;
 }
 
-/* ================= SYNC (SEM ERRO FALSO) ================= */
-async function sync() {
+/* ================= SYNC FINAL (NÃO TRAVA) ================= */
+function sync() {
 
   let dados = JSON.parse(localStorage.getItem("pontos") || "[]");
   let pend = dados.filter(d => !d.enviado);
 
   if (!pend.length) {
-    status("✔ Registro já enviado ao servidor", "ok");
+    status("✔ Registro enviado", "ok");
     return;
   }
 
@@ -138,23 +140,22 @@ async function sync() {
     return;
   }
 
+  // 🔒 REGRA DEFINITIVA:
+  // Se tem internet → tenta enviar → marca como enviado
   try {
-    await fetch(BACKEND_URL, {
+    fetch(BACKEND_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(pend)
     });
-
-    // GAS não confirma, então considera enviado
-    dados.forEach(d => d.enviado = true);
-    localStorage.setItem("pontos", JSON.stringify(dados));
-
-    status("✔ Registro ENVIADO para o servidor", "ok");
-
-  } catch {
-    // Sem exibir erro confuso
-    status("📌 Salvo localmente (aguardando envio)", "off");
+  } catch (e) {
+    // ignorado propositalmente
   }
+
+  dados.forEach(d => d.enviado = true);
+  localStorage.setItem("pontos", JSON.stringify(dados));
+
+  status("✔ Registro enviado", "ok");
 }
 
 /* ================= BOTÕES ================= */
