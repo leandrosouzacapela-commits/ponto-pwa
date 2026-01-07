@@ -16,35 +16,26 @@ body {
   text-align: center;
   padding: 20px;
 }
-input {
-  width: 90%;
-  padding: 12px;
-  margin: 10px 0;
-  font-size: 16px;
-  border-radius: 6px;
-  border: none;
-}
-button {
+button, select {
   width: 90%;
   padding: 15px;
   margin: 8px 0;
-  font-size: 18px;
-  border: none;
+  font-size: 17px;
   border-radius: 8px;
-  color: #fff;
-  cursor: pointer;
+  border: none;
 }
+button { color: #fff; }
 .entrar { background: #22c55e; }
 .sair { background: #ef4444; }
 .sync { background: #3b82f6; }
 .rel { background: #f59e0b; }
 
 .aviso {
-  display: none;
   margin-top: 15px;
   padding: 12px;
   border-radius: 8px;
   font-weight: bold;
+  display: none;
 }
 .ok { background: #16a34a; }
 .erro { background: #dc2626; }
@@ -58,6 +49,7 @@ button {
   padding: 20px;
   margin-top: 20px;
 }
+
 table {
   width: 100%;
   border-collapse: collapse;
@@ -65,6 +57,7 @@ table {
 th, td {
   border: 1px solid #000;
   padding: 6px;
+  text-align: center;
 }
 
 @media print {
@@ -77,21 +70,25 @@ th, td {
 <body>
 
 <h1>Controle de Ponto</h1>
-<p>Modo Offline</p>
+<p id="statusAtual">Status: Fora</p>
 
-<input id="funcionario" placeholder="Nome do funcionário">
-
-<button class="entrar" onclick="registrar('ENTRADA')">ENTRAR</button>
-<button class="sair" onclick="registrar('SAÍDA')">SAIR</button>
+<button class="entrar" onclick="registrarEntrada()">ENTRAR</button>
+<button class="sair" onclick="registrarSaida()">SAIR</button>
 <button class="sync" onclick="sincronizar()">SINCRONIZAR</button>
+
+<select id="tipoRelatorio">
+  <option value="diario">Relatório Diário</option>
+  <option value="semanal">Relatório Semanal</option>
+  <option value="mensal">Relatório Mensal</option>
+  <option value="anual">Relatório Anual</option>
+</select>
+
 <button class="rel" onclick="gerarRelatorio()">RELATÓRIO / PDF</button>
 
 <div id="aviso" class="aviso"></div>
 
-<!-- RELATÓRIO -->
 <div id="relatorio">
-  <h2>Relatório de Ponto</h2>
-  <h3 id="nomeRel"></h3>
+  <h2 id="tituloRel"></h2>
 
   <table>
     <thead>
@@ -122,57 +119,86 @@ function mostrarAviso(msg, tipo) {
   setTimeout(() => a.style.display = "none", 4000);
 }
 
-function registrar(tipo) {
-  const nome = funcionario.value.trim();
-  if (!nome) {
-    mostrarAviso("Informe o nome do funcionário", "alerta");
-    return;
-  }
+function getEstado() {
+  return localStorage.getItem("estado") || "FORA";
+}
 
+function setEstado(e) {
+  localStorage.setItem("estado", e);
+  document.getElementById("statusAtual").innerText =
+    "Status: " + (e === "DENTRO" ? "Em serviço" : "Fora");
+}
+setEstado(getEstado());
+
+function salvarRegistro(tipo) {
   let dados = JSON.parse(localStorage.getItem("pontos") || "[]");
   dados.push({
-    funcionario: nome,
     tipo,
     dataHora: new Date().toISOString(),
     sincronizado: false
   });
   localStorage.setItem("pontos", JSON.stringify(dados));
-
-  mostrarAviso(
-    `${tipo} registrada com sucesso<br>${new Date().toLocaleString()}`,
-    tipo === "ENTRADA" ? "ok" : "erro"
-  );
 }
 
-async function sincronizar() {
-  if (!navigator.onLine) {
-    mostrarAviso("Sem internet. Sincronize depois.", "alerta");
+function registrarEntrada() {
+  if (getEstado() === "DENTRO") {
+    mostrarAviso("Você já está em serviço. Registre a saída.", "alerta");
     return;
   }
+  salvarRegistro("ENTRADA");
+  setEstado("DENTRO");
+  mostrarAviso("Entrada registrada<br>" + new Date().toLocaleString(), "ok");
+}
 
-  mostrarAviso("Sincronizando dados...", "info");
+function registrarSaida() {
+  if (getEstado() === "FORA") {
+    mostrarAviso("Não é possível sair sem entrar.", "alerta");
+    return;
+  }
+  salvarRegistro("SAÍDA");
+  setEstado("FORA");
+  mostrarAviso("Saída registrada<br>" + new Date().toLocaleString(), "erro");
+}
 
-  setTimeout(() => {
-    mostrarAviso("Sincronização concluída com sucesso!", "ok");
-  }, 1500);
+function sincronizar() {
+  mostrarAviso("Sincronização configurada no backend", "info");
 }
 
 function gerarRelatorio() {
-  const nome = funcionario.value.trim();
-  if (!nome) {
-    mostrarAviso("Informe o nome para gerar o relatório", "alerta");
-    return;
+
+  let tipo = document.getElementById("tipoRelatorio").value;
+  let dados = JSON.parse(localStorage.getItem("pontos") || "[]");
+
+  let agora = new Date();
+  let inicio = new Date(0);
+
+  if (tipo === "diario") {
+    inicio = new Date(agora.setHours(0,0,0,0));
+    tituloRel.innerText = "Relatório Diário";
+  }
+  if (tipo === "semanal") {
+    inicio = new Date();
+    inicio.setDate(inicio.getDate() - inicio.getDay());
+    inicio.setHours(0,0,0,0);
+    tituloRel.innerText = "Relatório Semanal";
+  }
+  if (tipo === "mensal") {
+    inicio = new Date(agora.getFullYear(), agora.getMonth(), 1);
+    tituloRel.innerText = "Relatório Mensal";
+  }
+  if (tipo === "anual") {
+    inicio = new Date(agora.getFullYear(), 0, 1);
+    tituloRel.innerText = "Relatório Anual";
   }
 
-  let dados = JSON.parse(localStorage.getItem("pontos") || "[]")
-    .filter(d => d.funcionario === nome);
+  let filtrados = dados.filter(d => new Date(d.dataHora) >= inicio);
 
   let mapa = {};
-  dados.forEach(d => {
-    let data = new Date(d.dataHora).toLocaleDateString();
-    mapa[data] = mapa[data] || {};
-    if (d.tipo === "ENTRADA") mapa[data].entrada = d.dataHora;
-    if (d.tipo === "SAÍDA") mapa[data].saida = d.dataHora;
+  filtrados.forEach(d => {
+    let dia = new Date(d.dataHora).toLocaleDateString();
+    mapa[dia] = mapa[dia] || {};
+    if (d.tipo === "ENTRADA") mapa[dia].entrada = d.dataHora;
+    if (d.tipo === "SAÍDA") mapa[dia].saida = d.dataHora;
   });
 
   let tbody = document.getElementById("dadosRel");
@@ -181,22 +207,21 @@ function gerarRelatorio() {
 
   for (let dia in mapa) {
     if (mapa[dia].entrada && mapa[dia].saida) {
-      let ent = new Date(mapa[dia].entrada);
-      let sai = new Date(mapa[dia].saida);
-      let horas = (sai - ent) / 36e5;
-      total += horas;
+      let e = new Date(mapa[dia].entrada);
+      let s = new Date(mapa[dia].saida);
+      let h = (s - e) / 36e5;
+      total += h;
 
       tbody.innerHTML += `
         <tr>
           <td>${dia}</td>
-          <td>${ent.toLocaleTimeString()}</td>
-          <td>${sai.toLocaleTimeString()}</td>
-          <td>${horas.toFixed(2)}</td>
+          <td>${e.toLocaleTimeString()}</td>
+          <td>${s.toLocaleTimeString()}</td>
+          <td>${h.toFixed(2)}</td>
         </tr>`;
     }
   }
 
-  nomeRel.innerText = nome;
   totalHoras.innerText = total.toFixed(2);
   document.getElementById("relatorio").style.display = "block";
 }
