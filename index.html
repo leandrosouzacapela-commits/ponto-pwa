@@ -6,107 +6,162 @@
 <title>Controle de Ponto</title>
 
 <style>
+* { box-sizing: border-box; }
+
 body {
+  margin: 0;
   font-family: Arial, sans-serif;
-  background: #0f172a;
-  color: #fff;
+  background: linear-gradient(180deg, #0b1220, #0f172a);
+  color: #ffffff;
   text-align: center;
-  padding: 20px;
 }
 
-h1 { margin-bottom: 10px; }
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 40px 20px;
+}
 
-.box {
+h1 {
+  font-size: 36px;
+  margin-bottom: 20px;
+}
+
+.info {
   margin: 6px 0;
+  font-size: 18px;
 }
 
 button {
   width: 100%;
-  padding: 18px;
-  margin: 10px 0;
-  font-size: 18px;
-  border-radius: 10px;
+  padding: 22px;
+  margin: 16px 0;
+  font-size: 22px;
+  border-radius: 12px;
   border: none;
   color: #fff;
+  cursor: pointer;
 }
 
-.entrar { background: #22c55e; }
-.sair   { background: #ef4444; }
-.rel    { background: #2563eb; }
+.btn-entrar { background: #22c55e; }
+.btn-sair   { background: #ef4444; }
+.btn-rel    { background: #2563eb; }
 
-.status {
-  margin-top: 10px;
-  padding: 10px;
-  border-radius: 8px;
-  font-weight: bold;
+.status-box {
+  margin: 18px 0;
+  padding: 14px;
+  border-radius: 10px;
+  font-size: 20px;
+  background: #16a34a;
 }
 
-.ok { background: #16a34a; }
-.alerta { background: #dc2626; }
-.info { background: #1e40af; }
+.hidden { display: none; }
 
 #relatorio {
   display: none;
-  background: #fff;
+  background: #ffffff;
   color: #000;
-  padding: 15px;
-  margin-top: 15px;
+  padding: 20px;
+  margin-top: 20px;
   text-align: left;
+}
+
+#relatorio h2 {
+  text-align: center;
+  font-size: 18px;
+  margin-bottom: 10px;
+}
+
+#relatorio h3 {
+  text-align: center;
+  margin-top: 0;
+}
+
+@media print {
+  body * { display: none; }
+  #relatorio, #relatorio * { display: block; }
 }
 </style>
 </head>
 
 <body>
 
-<h1>Controle de Ponto</h1>
+<div class="container">
 
-<div class="box">Funcionário:</div>
-<div class="box">
-  <strong id="nomeFunc">EDENILSON DE SOUZA PEREIRA</strong>
-</div>
+  <h1>Controle de Ponto</h1>
 
-<div class="box" id="dataHora"></div>
-<div class="box" id="statusAtual"></div>
-<div class="box" id="ultimaAcao"></div>
-
-<button class="entrar" onclick="registrar('ENTRADA')">ENTRAR</button>
-<button class="sair" onclick="registrar('SAIDA')">SAIR</button>
-
-<div id="msg" class="status info">Pronto para registrar</div>
-
-<button class="rel" onclick="abrirRelatorio()">📄 RELATÓRIO / PDF</button>
-
-<div id="relatorio">
-  <h3 style="text-align:center">Relatório de Ponto</h3>
-
-  <div>
-    <button onclick="gerarRelatorio('DIA')">Diário</button>
-    <button onclick="gerarRelatorio('SEMANA')">Semanal</button>
-    <button onclick="gerarRelatorio('MES')">Mensal</button>
-    <button onclick="gerarRelatorio('ANO')">Anual</button>
+  <div class="info"><strong>Funcionário:</strong></div>
+  <div class="info">
+    <input
+      id="nomeFuncionario"
+      value="EDENILSON DE SOUZA PEREIRA"
+      onblur="salvarNome()"
+      style="
+        background: transparent;
+        border: none;
+        color: #ffffff;
+        font-size: 18px;
+        font-weight: bold;
+        text-align: center;
+        width: 100%;
+        outline: none;
+      "
+    >
   </div>
 
-  <hr>
-  <div id="conteudoRel"></div>
+  <div class="info" id="dataHora"></div>
+  <div class="info" id="statusAtual"></div>
+  <div class="info" id="ultimaAcao"></div>
 
-  <br>
-  <button onclick="window.print()">Imprimir / Salvar PDF</button>
+  <button class="btn-entrar" onclick="registrar('ENTRADA')">ENTRAR</button>
+  <button class="btn-sair" onclick="registrar('SAIDA')">SAIR</button>
+
+  <div id="statusEnvio" class="status-box hidden">✔ Registro enviado</div>
+
+  <button class="btn-rel" onclick="toggleRelatorio()">RELATÓRIO / PDF</button>
+
+  <div id="relatorio">
+    <h2>RELATÓRIO DE PONTO</h2>
+    <h3 id="tituloFuncionario"></h3>
+
+    <div style="text-align:center; margin-bottom:10px;">
+      <button onclick="gerarRelatorio('DIA')">Diário</button>
+      <button onclick="gerarRelatorio('SEMANA')">Semanal</button>
+      <button onclick="gerarRelatorio('MES')">Mensal</button>
+      <button onclick="gerarRelatorio('ANO')">Anual</button>
+    </div>
+
+    <hr>
+    <div id="conteudoRel"></div>
+
+    <br>
+    <button onclick="window.print()">Imprimir / Salvar PDF</button>
+  </div>
+
 </div>
 
 <script>
-/* ================= CONFIG ================= */
-const FUNCIONARIO = "EDENILSON DE SOUZA PEREIRA";
-const BACKEND_URL =
-"https://script.google.com/macros/s/AKfycbwfmbM-mhtDYLIPuETanm7yAQP1YLGEQtxbwXaSP2moySshiyYgBJBui1SEb2tVChlGVQ/exec";
-
-/* ================= RELOGIO ================= */
-setInterval(() => {
+/* ===== RELÓGIO ===== */
+function atualizarRelogio() {
   const d = new Date();
   dataHora.innerText =
-    "Hoje: " + d.toLocaleDateString() + " – " + d.toLocaleTimeString();
-}, 1000);
+    "Hoje: " + d.toLocaleDateString() + " — " + d.toLocaleTimeString();
+}
+setInterval(atualizarRelogio, 1000);
+atualizarRelogio();
 
-/* ================= ESTADO ================= */
+/* ===== NOME ===== */
+function salvarNome() {
+  const nome = nomeFuncionario.value.trim();
+  if (nome) localStorage.setItem("nomeFuncionario", nome);
+}
+function carregarNome() {
+  const salvo = localStorage.getItem("nomeFuncionario");
+  if (salvo) nomeFuncionario.value = salvo;
+}
+carregarNome();
+
+/* ===== ESTADO ===== */
 function getEstado() {
   return localStorage.getItem("estado") || "FORA";
 }
@@ -117,82 +172,65 @@ function setEstado(e) {
 }
 setEstado(getEstado());
 
-/* ================= UI ================= */
-function aviso(txt, cls) {
-  msg.className = "status " + cls;
-  msg.innerText = txt;
-}
-
-/* ================= REGISTRO ================= */
+/* ===== REGISTRO ===== */
 function registrar(tipo) {
-
-  if (tipo === "ENTRADA" && getEstado() === "DENTRO") {
-    aviso("Já está em serviço", "alerta");
-    return;
-  }
-
-  if (tipo === "SAIDA" && getEstado() === "FORA") {
-    aviso("Não pode sair sem entrar", "alerta");
-    return;
-  }
+  if (tipo === "ENTRADA" && getEstado() === "DENTRO") return;
+  if (tipo === "SAIDA" && getEstado() === "FORA") return;
 
   const agora = new Date();
-  const iso = agora.toISOString();
+  const dados = JSON.parse(localStorage.getItem("pontos") || "[]");
 
-  // salva local
-  let dados = JSON.parse(localStorage.getItem("pontos") || "[]");
-  dados.push({ tipo, iso });
+  dados.push({
+    tipo,
+    iso: agora.toISOString()
+  });
+
   localStorage.setItem("pontos", JSON.stringify(dados));
+
+  setEstado(tipo === "ENTRADA" ? "DENTRO" : "FORA");
 
   ultimaAcao.innerText =
     "Última ação: " + tipo + " às " + agora.toLocaleTimeString();
 
-  // ENVIO REAL PARA PLANILHA (GET)
-  const url =
-    BACKEND_URL +
-    "?nome=" + encodeURIComponent(FUNCIONARIO) +
-    "&tipo=" + encodeURIComponent(tipo) +
-    "&iso="  + encodeURIComponent(iso);
-
-  fetch(url);
-
-  setEstado(tipo === "ENTRADA" ? "DENTRO" : "FORA");
-  aviso("✔ Registro enviado", "ok");
+  statusEnvio.classList.remove("hidden");
 }
 
-/* ================= RELATÓRIO ================= */
-function abrirRelatorio() {
+/* ===== RELATÓRIO ===== */
+function toggleRelatorio() {
   relatorio.style.display =
     relatorio.style.display === "none" ? "block" : "none";
 }
 
-function gerarRelatorio(filtro) {
+function gerarRelatorio(tipo) {
 
-  let dados = JSON.parse(localStorage.getItem("pontos") || []);
-  let agora = new Date();
+  const nome = nomeFuncionario.value;
+  tituloFuncionario.innerText = nome;
+
+  const registros = JSON.parse(localStorage.getItem("pontos") || []);
+  const agora = new Date();
   let totalMin = 0;
   let html = "";
 
-  for (let i = 0; i < dados.length; i += 2) {
-    if (!dados[i+1]) break;
+  for (let i = 0; i < registros.length; i += 2) {
+    if (!registros[i+1]) break;
 
-    let e = new Date(dados[i].iso);
-    let s = new Date(dados[i+1].iso);
+    const e = new Date(registros[i].iso);
+    const s = new Date(registros[i+1].iso);
 
-    if (filtro === "DIA" && e.toDateString() !== agora.toDateString()) continue;
-    if (filtro === "MES" && e.getMonth() !== agora.getMonth()) continue;
-    if (filtro === "ANO" && e.getFullYear() !== agora.getFullYear()) continue;
+    if (tipo === "DIA" && e.toDateString() !== agora.toDateString()) continue;
+    if (tipo === "MES" && e.getMonth() !== agora.getMonth()) continue;
+    if (tipo === "ANO" && e.getFullYear() !== agora.getFullYear()) continue;
 
-    let min = Math.round((s - e) / 60000);
+    const min = Math.round((s - e) / 60000);
     totalMin += min;
 
     html += `${e.toLocaleDateString()} — ${e.toLocaleTimeString()} / ${s.toLocaleTimeString()}<br>`;
   }
 
-  let h = Math.floor(totalMin / 60);
-  let m = totalMin % 60;
+  const h = Math.floor(totalMin / 60).toString().padStart(2,"0");
+  const m = (totalMin % 60).toString().padStart(2,"0");
 
-  html += `<br><strong>Total: ${h}h:${m.toString().padStart(2,"0")}min</strong>`;
+  html += `<br><strong>Total: ${h}h:${m}min</strong>`;
 
   conteudoRel.innerHTML = html;
 }
